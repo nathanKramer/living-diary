@@ -2,6 +2,7 @@ import { Bot, Context, session } from "grammy";
 import { config } from "../config.js";
 import { generateDiaryResponse } from "../ai/index.js";
 import type { MemoryContext } from "../ai/index.js";
+import type { MemoryStore } from "../memory/index.js";
 
 export interface SessionData {
   /** Recent conversation turns for short-term context */
@@ -14,7 +15,7 @@ function initialSessionData(): SessionData {
 
 export type BotContext = Context & { session: SessionData };
 
-export function createBot(): Bot<BotContext> {
+export function createBot(memory: MemoryStore): Bot<BotContext> {
   const bot = new Bot<BotContext>(config.telegramBotToken);
 
   // Session middleware for short-term memory
@@ -71,10 +72,15 @@ export function createBot(): Bot<BotContext> {
     // Show typing indicator while generating
     await ctx.replyWithChatAction("typing");
 
-    // TODO: Retrieve from LanceDB (Task 3/5)
+    // Retrieve relevant memories from LanceDB
+    const [relevantResults, factResults] = await Promise.all([
+      memory.searchMemories(userMessage, 5).catch(() => []),
+      memory.searchMemories(userMessage, 5, "user_fact").catch(() => []),
+    ]);
+
     const memoryContext: MemoryContext = {
-      relevantMemories: [],
-      userFacts: [],
+      relevantMemories: relevantResults.map((m) => m.content),
+      userFacts: factResults.map((m) => m.content),
     };
 
     try {

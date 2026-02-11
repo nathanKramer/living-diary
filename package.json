@@ -14,8 +14,10 @@
   "packageManager": "pnpm@10.28.1",
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.41",
+    "@ai-sdk/openai": "^3.0.26",
     "@lancedb/lancedb": "^0.26.2",
     "ai": "^6.0.78",
+    "apache-arrow": "^21.1.0",
     "dotenv": "^17.2.4",
     "grammy": "^1.40.0",
     "node-cron": "^4.2.1",

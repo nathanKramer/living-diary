@@ -1,5 +1,6 @@
 import { config } from "./config.js";
 import { createBot } from "./bot/index.js";
+import { MemoryStore } from "./memory/index.js";
 
 async function main() {
   console.log("Living Diary starting...");
@@ -7,9 +8,10 @@ async function main() {
   console.log(`Data dir: ${config.dataDir}`);
   console.log(`Allowed user: ${config.allowedUserId}`);
 
-  // TODO: Initialize memory system (Task 3)
+  const memory = new MemoryStore();
+  await memory.init();
 
-  const bot = createBot();
+  const bot = createBot(memory);
 
   // Graceful shutdown
   const shutdown = () => {
