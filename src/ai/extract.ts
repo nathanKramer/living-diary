@@ -80,17 +80,14 @@ export async function extractAndStoreMemories(
   // Only extract if there's enough conversation to work with
   if (recentMessages.length < 2) return;
 
-  // Only extract from what the user said — not from AI responses
-  // (which may contain recalled memories we don't want to re-store)
-  const userMessages = recentMessages
-    .filter((m) => m.role === "user")
-    .slice(-3);
+  // Only extract from the most recent user message — older messages
+  // were already extracted when they were sent
+  const userMessages = recentMessages.filter((m) => m.role === "user");
+  const lastMessage = userMessages[userMessages.length - 1];
 
-  if (userMessages.length === 0) return;
+  if (!lastMessage) return;
 
-  const conversationText = userMessages
-    .map((m) => m.content)
-    .join("\n\n");
+  const conversationText = lastMessage.content;
 
   const { text } = await generateText({
     model: anthropic(config.aiModel),

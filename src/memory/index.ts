@@ -5,26 +5,8 @@ import { embed } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { config } from "../config.js";
 
-export type MemoryType =
-  | "diary_entry"
-  | "user_fact"
-  | "conversation_summary"
-  | "reflection"
-  | "photo_memory";
-
-export interface Memory {
-  id: string;
-  userId: number;
-  content: string;
-  type: MemoryType;
-  tags: string;
-  timestamp: number;
-  photoFileId?: string;
-}
-
-export interface MemoryWithDistance extends Memory {
-  _distance: number;
-}
+export type { MemoryType, Memory, MemoryWithDistance } from "../shared/types.js";
+import type { MemoryType, Memory, MemoryWithDistance } from "../shared/types.js";
 
 const EMBEDDING_MODEL = "text-embedding-3-small";
 const VECTOR_DIM = 1536;
