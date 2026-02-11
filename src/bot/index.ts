@@ -1,11 +1,35 @@
-import { Bot, Context, session } from "grammy";
+import { Bot, Context, InputFile, session } from "grammy";
 import { config } from "../config.js";
 import { generateDiaryResponse } from "../ai/index.js";
 import type { MemoryStore } from "../memory/index.js";
 import { extractAndStoreMemories } from "../ai/extract.js";
 import { generatePersona } from "../ai/configure.js";
+import { describePhoto } from "../ai/describe-photo.js";
 import { loadPersona, savePersona } from "../persona/index.js";
 import type { Persona } from "../persona/index.js";
+
+const pendingDeletes = new Map<number, string[]>();
+
+// Rate limiting: track API calls per user per hour
+const rateLimitMap = new Map<number, { count: number; resetAt: number }>();
+const MAX_MESSAGES_PER_HOUR = 60;
+
+function checkRateLimit(userId: number): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(userId);
+
+  if (!entry || now >= entry.resetAt) {
+    rateLimitMap.set(userId, { count: 1, resetAt: now + 60 * 60 * 1000 });
+    return true;
+  }
+
+  if (entry.count >= MAX_MESSAGES_PER_HOUR) {
+    return false;
+  }
+
+  entry.count++;
+  return true;
+}
 
 export interface SessionData {
   /** Recent conversation turns for short-term context */
@@ -57,6 +81,7 @@ export function createBot(memory: MemoryStore, initialPersona: Persona | null): 
         "/delete_all — Delete everything (careful!)\n" +
         "/configure <description> — Change how I behave\n" +
         "/persona — Show current persona\n\n" +
+        "You can also send me photos and I'll remember them too.\n\n" +
         "Or just send me a message and we'll talk."
     );
   });
@@ -112,10 +137,235 @@ export function createBot(memory: MemoryStore, initialPersona: Persona | null): 
     );
   });
 
+  bot.command("search", async (ctx) => {
+    const query = ctx.match;
+    if (!query) {
+      await ctx.reply("Usage: /search <query>\n\nExample: /search that trip last summer");
+      return;
+    }
+
+    await ctx.replyWithChatAction("typing");
+
+    try {
+      const results = await memory.searchMemories(query, 10);
+      if (results.length === 0) {
+        await ctx.reply("No matching memories found.");
+        return;
+      }
+
+      const lines = results.map((m, i) => {
+        const date = new Date(m.timestamp).toISOString().split("T")[0];
+        return `${i + 1}. [${date}] (${m.type}) ${m.content}`;
+      });
+      await ctx.reply(lines.join("\n\n"));
+    } catch (err) {
+      console.error("Search failed:", err);
+      await ctx.reply("Sorry, the search failed. Try again.");
+    }
+  });
+
+  bot.command("forget", async (ctx) => {
+    const query = ctx.match;
+    if (!query) {
+      await ctx.reply("Usage: /forget <query>\n\nI'll find matching memories and ask you to confirm before deleting.");
+      return;
+    }
+
+    await ctx.replyWithChatAction("typing");
+
+    try {
+      const results = await memory.searchMemories(query, 5);
+      if (results.length === 0) {
+        await ctx.reply("No matching memories found.");
+        return;
+      }
+
+      const userId = ctx.from!.id;
+      const ids = results.map((m) => m.id);
+      pendingDeletes.set(userId, ids);
+
+      const lines = results.map((m, i) => {
+        const date = new Date(m.timestamp).toISOString().split("T")[0];
+        return `${i + 1}. [${date}] (${m.type}) ${m.content}`;
+      });
+
+      await ctx.reply(
+        "Found these memories:\n\n" +
+          lines.join("\n\n") +
+          "\n\nSend /confirm_forget to delete all of these, or /cancel to keep them.",
+      );
+    } catch (err) {
+      console.error("Forget search failed:", err);
+      await ctx.reply("Sorry, the search failed. Try again.");
+    }
+  });
+
+  bot.command("confirm_forget", async (ctx) => {
+    const userId = ctx.from!.id;
+    const ids = pendingDeletes.get(userId);
+    if (!ids || ids.length === 0) {
+      await ctx.reply("Nothing to forget. Use /forget <query> first.");
+      return;
+    }
+
+    for (const id of ids) {
+      await memory.deleteMemory(id);
+    }
+    pendingDeletes.delete(userId);
+
+    await ctx.reply(`Deleted ${ids.length} ${ids.length === 1 ? "memory" : "memories"}.`);
+  });
+
+  bot.command("cancel", async (ctx) => {
+    const userId = ctx.from!.id;
+    if (pendingDeletes.has(userId)) {
+      pendingDeletes.delete(userId);
+      await ctx.reply("Cancelled. No memories were deleted.");
+    }
+  });
+
+  bot.command("export", async (ctx) => {
+    await ctx.replyWithChatAction("typing");
+
+    try {
+      const all = await memory.exportAll();
+      const json = JSON.stringify(all, null, 2);
+      const buffer = Buffer.from(json, "utf-8");
+
+      await ctx.replyWithDocument(
+        new InputFile(buffer, "living-diary-export.json"),
+        { caption: `Exported ${all.length} memories.` },
+      );
+    } catch (err) {
+      console.error("Export failed:", err);
+      await ctx.reply("Sorry, the export failed. Try again.");
+    }
+  });
+
+  bot.command("stats", async (ctx) => {
+    try {
+      const all = await memory.exportAll();
+      const total = all.length;
+
+      if (total === 0) {
+        await ctx.reply("No memories stored yet. Start talking to me!");
+        return;
+      }
+
+      const byType: Record<string, number> = {};
+      let oldest = Infinity;
+      let newest = 0;
+
+      for (const m of all) {
+        byType[m.type] = (byType[m.type] ?? 0) + 1;
+        if (m.timestamp < oldest) oldest = m.timestamp;
+        if (m.timestamp > newest) newest = m.timestamp;
+      }
+
+      const typeLines = Object.entries(byType)
+        .map(([type, count]) => `  ${type}: ${count}`)
+        .join("\n");
+
+      await ctx.reply(
+        `Total memories: ${total}\n\n` +
+          `By type:\n${typeLines}\n\n` +
+          `Oldest: ${new Date(oldest).toISOString().split("T")[0]}\n` +
+          `Newest: ${new Date(newest).toISOString().split("T")[0]}`,
+      );
+    } catch (err) {
+      console.error("Stats failed:", err);
+      await ctx.reply("Sorry, couldn't fetch stats. Try again.");
+    }
+  });
+
+  bot.command("delete_all", async (ctx) => {
+    await ctx.reply(
+      "This will permanently delete ALL memories for ALL users. This cannot be undone.\n\n" +
+        "Send /confirm_delete_all to proceed, or /cancel to abort.",
+    );
+  });
+
+  bot.command("confirm_delete_all", async (ctx) => {
+    try {
+      const count = await memory.countMemories();
+      await memory.deleteAll();
+      await ctx.reply(`Deleted all ${count} memories. Starting fresh.`);
+    } catch (err) {
+      console.error("Delete all failed:", err);
+      await ctx.reply("Sorry, the deletion failed. Try again.");
+    }
+  });
+
+  // Photo message handler
+  bot.on("message:photo", async (ctx) => {
+    console.log(`Photo from ${ctx.from.id}`);
+
+    if (!checkRateLimit(ctx.from.id)) {
+      await ctx.reply("You've sent a lot of messages this hour. Take a breather and try again soon.");
+      return;
+    }
+
+    await ctx.replyWithChatAction("typing");
+
+    const userId = ctx.from.id;
+    const caption = ctx.message.caption;
+
+    try {
+      // Get the largest photo size (last in the array)
+      const photo = ctx.message.photo[ctx.message.photo.length - 1]!;
+      const file = await ctx.api.getFile(photo.file_id);
+      const url = `https://api.telegram.org/file/bot${config.telegramBotToken}/${file.file_path}`;
+
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Failed to download photo: ${response.status}`);
+      }
+      const imageBuffer = Buffer.from(await response.arrayBuffer());
+
+      // Get AI description of the photo
+      const description = await describePhoto(imageBuffer, caption ?? undefined);
+
+      // Store as photo memory
+      const memId = await memory.addMemory(
+        description,
+        "photo_memory",
+        userId,
+        ["photo"],
+        photo.file_id,
+      );
+
+      if (memId) {
+        console.log(`Stored photo_memory: "${description}" (${memId})`);
+      }
+
+      // Add to session for conversational context
+      const sessionText = caption
+        ? `[User sent a photo with caption: "${caption}"] AI description: ${description}`
+        : `[User sent a photo] AI description: ${description}`;
+      ctx.session.recentMessages.push({ role: "user", content: sessionText });
+
+      // Keep only last 20 turns
+      const maxTurns = 20;
+      if (ctx.session.recentMessages.length > maxTurns) {
+        ctx.session.recentMessages = ctx.session.recentMessages.slice(-maxTurns);
+      }
+
+      await ctx.reply(`Got it! Here's what I see:\n\n${description}`);
+    } catch (err) {
+      console.error("Photo processing failed:", err);
+      await ctx.reply("Sorry, I had trouble processing that photo. Try again.");
+    }
+  });
+
   // Main message handler
   bot.on("message:text", async (ctx) => {
     const userMessage = ctx.message.text;
     console.log(`Message from ${ctx.from.id}: ${userMessage}`);
+
+    if (!checkRateLimit(ctx.from.id)) {
+      await ctx.reply("You've sent a lot of messages this hour. Take a breather and try again soon.");
+      return;
+    }
 
     // Store in session short-term memory
     ctx.session.recentMessages.push({ role: "user", content: userMessage });
@@ -137,6 +387,9 @@ export function createBot(memory: MemoryStore, initialPersona: Persona | null): 
         memory,
         userId,
         currentPersona?.systemPromptAddition,
+        async (fileId, caption) => {
+          await ctx.replyWithPhoto(fileId, caption ? { caption } : undefined);
+        },
       );
 
       // Store assistant response in short-term memory

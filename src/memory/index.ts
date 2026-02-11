@@ -9,7 +9,8 @@ export type MemoryType =
   | "diary_entry"
   | "user_fact"
   | "conversation_summary"
-  | "reflection";
+  | "reflection"
+  | "photo_memory";
 
 export interface Memory {
   id: string;
@@ -18,6 +19,7 @@ export interface Memory {
   type: MemoryType;
   tags: string;
   timestamp: number;
+  photoFileId?: string;
 }
 
 export interface MemoryWithDistance extends Memory {
@@ -39,6 +41,7 @@ const tableSchema = new arrow.Schema([
   new arrow.Field("type", new arrow.Utf8(), false),
   new arrow.Field("tags", new arrow.Utf8(), false),
   new arrow.Field("timestamp", new arrow.Float64(), false),
+  new arrow.Field("photoFileId", new arrow.Utf8(), true),
   new arrow.Field(
     "vector",
     new arrow.FixedSizeList(
@@ -69,9 +72,10 @@ export class MemoryStore {
       const existing = await this.db.openTable(TABLE_NAME);
       const schema = await existing.schema();
       const hasUserId = schema.fields.some((f) => f.name === "userId");
+      const hasPhotoFileId = schema.fields.some((f) => f.name === "photoFileId");
 
-      if (!hasUserId) {
-        console.log("Schema outdated (missing userId), recreating table...");
+      if (!hasUserId || !hasPhotoFileId) {
+        console.log("Schema outdated, recreating table...");
         await this.db.dropTable(TABLE_NAME);
         this.table = await this.db.createEmptyTable(TABLE_NAME, tableSchema);
       } else {
@@ -91,6 +95,7 @@ export class MemoryStore {
     type: MemoryType,
     userId: number,
     tags: string[] = [],
+    photoFileId?: string,
   ): Promise<string | null> {
     if (!this.table) throw new Error("Memory store not initialized");
 
@@ -133,6 +138,7 @@ export class MemoryStore {
         type,
         tags: tags.join(","),
         timestamp: Date.now(),
+        photoFileId: photoFileId ?? null,
         vector,
       },
     ]);
@@ -175,6 +181,7 @@ export class MemoryStore {
       type: row.type as MemoryType,
       tags: row.tags as string,
       timestamp: row.timestamp as number,
+      photoFileId: (row.photoFileId as string) || undefined,
       _distance: row._distance as number,
     }));
   }
@@ -187,7 +194,7 @@ export class MemoryStore {
 
     const results = await this.table
       .query()
-      .select(["id", "userId", "content", "type", "tags", "timestamp"])
+      .select(["id", "userId", "content", "type", "tags", "timestamp", "photoFileId"])
       .limit(limit)
       .toArray();
 
@@ -203,6 +210,7 @@ export class MemoryStore {
       type: row.type as MemoryType,
       tags: row.tags as string,
       timestamp: row.timestamp as number,
+      photoFileId: (row.photoFileId as string) || undefined,
     }));
   }
 
@@ -218,7 +226,7 @@ export class MemoryStore {
 
     const results = await this.table
       .query()
-      .select(["id", "userId", "content", "type", "tags", "timestamp"])
+      .select(["id", "userId", "content", "type", "tags", "timestamp", "photoFileId"])
       .where(`timestamp >= ${startMs} AND timestamp < ${endMs}`)
       .limit(limit)
       .toArray();
@@ -234,6 +242,7 @@ export class MemoryStore {
       type: row.type as MemoryType,
       tags: row.tags as string,
       timestamp: row.timestamp as number,
+      photoFileId: (row.photoFileId as string) || undefined,
     }));
   }
 
@@ -257,7 +266,7 @@ export class MemoryStore {
 
     const results = await this.table
       .query()
-      .select(["id", "userId", "content", "type", "tags", "timestamp"])
+      .select(["id", "userId", "content", "type", "tags", "timestamp", "photoFileId"])
       .toArray();
 
     return results.map((row) => ({
@@ -267,6 +276,7 @@ export class MemoryStore {
       type: row.type as MemoryType,
       tags: row.tags as string,
       timestamp: row.timestamp as number,
+      photoFileId: (row.photoFileId as string) || undefined,
     }));
   }
 }

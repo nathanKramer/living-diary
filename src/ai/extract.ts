@@ -62,7 +62,7 @@ function parseExtraction(text: string): ExtractionResult {
         (m) =>
           typeof m.content === "string" &&
           m.content.length > 0 &&
-          (m.type === "diary_entry" || m.type === "user_fact") &&
+          (m.type === "diary_entry" || m.type === "user_fact" || m.type === "photo_memory") &&
           Array.isArray(m.tags),
       ),
     };

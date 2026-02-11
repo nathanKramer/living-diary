@@ -6,9 +6,10 @@ import { config } from "../config.js";
 import { buildSystemPrompt } from "./system-prompt.js";
 import type { MemoryStore } from "../memory/index.js";
 
-function formatMemory(m: { content: string; timestamp: number; type: string }): string {
+function formatMemory(m: { content: string; timestamp: number; type: string; photoFileId?: string }): string {
   const date = new Date(m.timestamp).toISOString().split("T")[0];
-  return `[${date}] (${m.type}) ${m.content}`;
+  const photoTag = m.photoFileId ? ` [photoId:${m.photoFileId}]` : "";
+  return `[${date}] (${m.type})${photoTag} ${m.content}`;
 }
 
 function buildMessages(
@@ -25,6 +26,7 @@ export async function generateDiaryResponse(
   memory: MemoryStore,
   userId: number,
   persona?: string,
+  sendPhoto?: (fileId: string, caption?: string) => Promise<void>,
 ): Promise<string> {
   const messages = buildMessages(recentMessages);
 
@@ -35,7 +37,7 @@ export async function generateDiaryResponse(
     tools: {
       search_memories: tool({
         description:
-          "Search past memories by semantic similarity. Use this when the user asks about past events, topics, or when you want to reference something from earlier conversations.",
+          "Search past memories by semantic similarity. Use this when the user asks about past events, topics, photos, or when you want to reference something from earlier conversations. This also finds photo memories by their descriptions.",
         inputSchema: z.object({
           query: z.string().describe("The search query — describe what you're looking for"),
           limit: z.number().optional().default(5).describe("Max results to return"),
@@ -88,6 +90,19 @@ export async function generateDiaryResponse(
           const results = await memory.getRecentMemories(limit);
           if (results.length === 0) return "No memories stored yet.";
           return results.map(formatMemory).join("\n");
+        },
+      }),
+      send_photo: tool({
+        description:
+          "Send a stored photo back to the user. Use this when a photo memory appears in search results (indicated by [photoId:...]) and the user wants to see it. Extract the photoId from the search result.",
+        inputSchema: z.object({
+          photoFileId: z.string().describe("The Telegram file ID from the [photoId:...] tag in search results"),
+          caption: z.string().optional().describe("Optional caption to send with the photo"),
+        }),
+        execute: async ({ photoFileId, caption }) => {
+          if (!sendPhoto) return "Photo sending is not available in this context.";
+          await sendPhoto(photoFileId, caption);
+          return "Photo sent to the user.";
         },
       }),
     },
