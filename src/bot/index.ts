@@ -1,5 +1,7 @@
 import { Bot, Context, session } from "grammy";
 import { config } from "../config.js";
+import { generateDiaryResponse } from "../ai/index.js";
+import type { MemoryContext } from "../ai/index.js";
 
 export interface SessionData {
   /** Recent conversation turns for short-term context */
@@ -52,7 +54,7 @@ export function createBot(): Bot<BotContext> {
     );
   });
 
-  // Main message handler — will be wired to AI in Task 4
+  // Main message handler
   bot.on("message:text", async (ctx) => {
     const userMessage = ctx.message.text;
     console.log(`Message from ${ctx.from.id}: ${userMessage}`);
@@ -66,10 +68,31 @@ export function createBot(): Bot<BotContext> {
       ctx.session.recentMessages = ctx.session.recentMessages.slice(-maxTurns);
     }
 
-    // TODO: Replace with AI response (Task 4)
-    await ctx.reply(
-      "I heard you! (AI responses coming soon — for now I'm just a scaffold.)"
-    );
+    // Show typing indicator while generating
+    await ctx.replyWithChatAction("typing");
+
+    // TODO: Retrieve from LanceDB (Task 3/5)
+    const memoryContext: MemoryContext = {
+      relevantMemories: [],
+      userFacts: [],
+    };
+
+    try {
+      const response = await generateDiaryResponse(
+        ctx.session.recentMessages,
+        memoryContext,
+      );
+
+      // Store assistant response in short-term memory
+      ctx.session.recentMessages.push({ role: "assistant", content: response });
+
+      await ctx.reply(response);
+    } catch (err) {
+      console.error("AI generation failed:", err);
+      await ctx.reply(
+        "Sorry, I had trouble thinking of a response. Try again in a moment.",
+      );
+    }
   });
 
   return bot;
