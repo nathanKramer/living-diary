@@ -1,7 +1,6 @@
 import { Bot, Context, session } from "grammy";
 import { config } from "../config.js";
 import { generateDiaryResponse } from "../ai/index.js";
-import type { MemoryContext } from "../ai/index.js";
 import type { MemoryStore } from "../memory/index.js";
 import { extractAndStoreMemories } from "../ai/extract.js";
 import { generatePersona } from "../ai/configure.js";
@@ -132,28 +131,11 @@ export function createBot(memory: MemoryStore, initialPersona: Persona | null): 
 
     const userId = ctx.from.id;
 
-    // Retrieve relevant memories from LanceDB
-    // User facts: only for the current user
-    // General memories: shared across all users (may surface family context)
-    const [relevantResults, factResults] = await Promise.all([
-      memory.searchMemories(userMessage, 5).catch(() => []),
-      memory
-        .searchMemories(userMessage, 5, {
-          typeFilter: "user_fact",
-          userIdFilter: userId,
-        })
-        .catch(() => []),
-    ]);
-
-    const memoryContext: MemoryContext = {
-      relevantMemories: relevantResults.map((m) => m.content),
-      userFacts: factResults.map((m) => m.content),
-    };
-
     try {
       const response = await generateDiaryResponse(
         ctx.session.recentMessages,
-        memoryContext,
+        memory,
+        userId,
         currentPersona?.systemPromptAddition,
       );
 
@@ -163,13 +145,9 @@ export function createBot(memory: MemoryStore, initialPersona: Persona | null): 
       await ctx.reply(response);
 
       // Extract and store memories in the background (don't block the reply)
-      const allExistingMemories = [
-        ...memoryContext.relevantMemories,
-        ...memoryContext.userFacts,
-      ];
       extractAndStoreMemories(
         ctx.session.recentMessages,
-        allExistingMemories,
+        [],
         memory,
         userId,
       ).catch((err) => console.error("Memory extraction failed:", err));

@@ -1,68 +1,97 @@
-import { generateText } from "ai";
+import { generateText, tool, stepCountIs } from "ai";
 import { anthropic } from "@ai-sdk/anthropic";
 import type { ModelMessage } from "ai";
+import { z } from "zod";
 import { config } from "../config.js";
 import { buildSystemPrompt } from "./system-prompt.js";
+import type { MemoryStore } from "../memory/index.js";
 
-export interface MemoryContext {
-  relevantMemories: string[];
-  userFacts: string[];
+function formatMemory(m: { content: string; timestamp: number; type: string }): string {
+  const date = new Date(m.timestamp).toISOString().split("T")[0];
+  return `[${date}] (${m.type}) ${m.content}`;
 }
 
 function buildMessages(
   recentMessages: Array<{ role: "user" | "assistant"; content: string }>,
-  memoryContext: MemoryContext,
 ): ModelMessage[] {
-  const messages: ModelMessage[] = [];
-
-  // Inject memory context as a system-adjacent user message at the start
-  const memoryParts: string[] = [];
-
-  if (memoryContext.userFacts.length > 0) {
-    memoryParts.push(
-      "## Things I know about you\n" + memoryContext.userFacts.join("\n"),
-    );
-  }
-
-  if (memoryContext.relevantMemories.length > 0) {
-    memoryParts.push(
-      "## Relevant memories from past conversations\n" +
-        memoryContext.relevantMemories.join("\n---\n"),
-    );
-  }
-
-  if (memoryParts.length > 0) {
-    messages.push({
-      role: "user",
-      content:
-        "[MEMORY CONTEXT — use naturally, don't reference this block directly]\n\n" +
-        memoryParts.join("\n\n"),
-    });
-    messages.push({
-      role: "assistant",
-      content: "Thank you, I'll keep that context in mind.",
-    });
-  }
-
-  // Add recent conversation turns
-  for (const msg of recentMessages) {
-    messages.push({ role: msg.role, content: msg.content });
-  }
-
-  return messages;
+  return recentMessages.map((msg) => ({
+    role: msg.role,
+    content: msg.content,
+  }));
 }
 
 export async function generateDiaryResponse(
   recentMessages: Array<{ role: "user" | "assistant"; content: string }>,
-  memoryContext: MemoryContext,
+  memory: MemoryStore,
+  userId: number,
   persona?: string,
 ): Promise<string> {
-  const messages = buildMessages(recentMessages, memoryContext);
+  const messages = buildMessages(recentMessages);
 
   const { text } = await generateText({
     model: anthropic(config.aiModel),
     system: buildSystemPrompt(persona),
     messages,
+    tools: {
+      search_memories: tool({
+        description:
+          "Search past memories by semantic similarity. Use this when the user asks about past events, topics, or when you want to reference something from earlier conversations.",
+        inputSchema: z.object({
+          query: z.string().describe("The search query — describe what you're looking for"),
+          limit: z.number().optional().default(5).describe("Max results to return"),
+        }),
+        execute: async ({ query, limit }) => {
+          const results = await memory.searchMemories(query, limit);
+          if (results.length === 0) return "No matching memories found.";
+          return results.map(formatMemory).join("\n");
+        },
+      }),
+      search_by_date: tool({
+        description:
+          "Search memories by date range. Use this when the user asks about a specific date, day, week, or time period (e.g. 'what happened on February 11th', 'last Monday', 'this week').",
+        inputSchema: z.object({
+          startDate: z
+            .string()
+            .describe("Start of date range as ISO date string (e.g. '2026-02-11')"),
+          endDate: z
+            .string()
+            .describe("End of date range (exclusive) as ISO date string (e.g. '2026-02-12')"),
+        }),
+        execute: async ({ startDate, endDate }) => {
+          const startMs = new Date(startDate).getTime();
+          const endMs = new Date(endDate).getTime();
+          const results = await memory.searchByDateRange(startMs, endMs);
+          if (results.length === 0) return "No memories found for that date range.";
+          return results.map(formatMemory).join("\n");
+        },
+      }),
+      get_user_facts: tool({
+        description:
+          "Get known facts about the current user (their preferences, background, relationships, etc.). Use this at the start of a conversation or when you need to recall who you're talking to.",
+        inputSchema: z.object({}),
+        execute: async () => {
+          const results = await memory.searchMemories("", 20, {
+            typeFilter: "user_fact",
+            userIdFilter: userId,
+          });
+          if (results.length === 0) return "No known facts about this user yet.";
+          return results.map((m) => m.content).join("\n");
+        },
+      }),
+      get_recent_memories: tool({
+        description:
+          "Get the most recent memories across all users. Use this for general context about what's been happening lately.",
+        inputSchema: z.object({
+          limit: z.number().optional().default(10).describe("How many recent memories to fetch"),
+        }),
+        execute: async ({ limit }) => {
+          const results = await memory.getRecentMemories(limit);
+          if (results.length === 0) return "No memories stored yet.";
+          return results.map(formatMemory).join("\n");
+        },
+      }),
+    },
+    stopWhen: stepCountIs(5),
   });
 
   return text;
