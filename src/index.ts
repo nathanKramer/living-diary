@@ -6,7 +6,7 @@ async function main() {
   console.log("Living Diary starting...");
   console.log(`Model: ${config.aiModel}`);
   console.log(`Data dir: ${config.dataDir}`);
-  console.log(`Allowed user: ${config.allowedUserId}`);
+  console.log(`Allowed users: ${config.allowedUserIds.join(", ")}`);
 
   const memory = new MemoryStore();
   await memory.init();

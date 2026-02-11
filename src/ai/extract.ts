@@ -75,6 +75,7 @@ export async function extractAndStoreMemories(
   recentMessages: Array<{ role: "user" | "assistant"; content: string }>,
   existingMemories: string[],
   memory: MemoryStore,
+  userId: number,
 ): Promise<void> {
   // Only extract if there's enough conversation to work with
   if (recentMessages.length < 2) return;
@@ -102,7 +103,7 @@ export async function extractAndStoreMemories(
 
   // Store each extracted memory
   for (const mem of result.memories) {
-    const id = await memory.addMemory(mem.content, mem.type, mem.tags);
+    const id = await memory.addMemory(mem.content, mem.type, userId, mem.tags);
     console.log(`Stored ${mem.type}: "${mem.content}" (${id})`);
   }
 }

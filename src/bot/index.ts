@@ -22,9 +22,9 @@ export function createBot(memory: MemoryStore): Bot<BotContext> {
   // Session middleware for short-term memory
   bot.use(session({ initial: initialSessionData }));
 
-  // Only respond to the allowed user
+  // Only respond to allowed users
   bot.use(async (ctx, next) => {
-    if (ctx.from?.id !== config.allowedUserId) {
+    if (!ctx.from || !config.allowedUserIds.includes(ctx.from.id)) {
       console.log(`Ignored message from unauthorized user: ${ctx.from?.id}`);
       return;
     }
@@ -73,10 +73,19 @@ export function createBot(memory: MemoryStore): Bot<BotContext> {
     // Show typing indicator while generating
     await ctx.replyWithChatAction("typing");
 
+    const userId = ctx.from.id;
+
     // Retrieve relevant memories from LanceDB
+    // User facts: only for the current user
+    // General memories: shared across all users (may surface family context)
     const [relevantResults, factResults] = await Promise.all([
       memory.searchMemories(userMessage, 5).catch(() => []),
-      memory.searchMemories(userMessage, 5, "user_fact").catch(() => []),
+      memory
+        .searchMemories(userMessage, 5, {
+          typeFilter: "user_fact",
+          userIdFilter: userId,
+        })
+        .catch(() => []),
     ]);
 
     const memoryContext: MemoryContext = {
@@ -104,6 +113,7 @@ export function createBot(memory: MemoryStore): Bot<BotContext> {
         ctx.session.recentMessages,
         allExistingMemories,
         memory,
+        userId,
       ).catch((err) => console.error("Memory extraction failed:", err));
     } catch (err) {
       console.error("AI generation failed:", err);

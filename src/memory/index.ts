@@ -13,6 +13,7 @@ export type MemoryType =
 
 export interface Memory {
   id: string;
+  userId: number;
   content: string;
   type: MemoryType;
   tags: string;
@@ -29,6 +30,7 @@ const TABLE_NAME = "memories";
 
 const tableSchema = new arrow.Schema([
   new arrow.Field("id", new arrow.Utf8(), false),
+  new arrow.Field("userId", new arrow.Float64(), false),
   new arrow.Field("content", new arrow.Utf8(), false),
   new arrow.Field("type", new arrow.Utf8(), false),
   new arrow.Field("tags", new arrow.Utf8(), false),
@@ -73,6 +75,7 @@ export class MemoryStore {
   async addMemory(
     content: string,
     type: MemoryType,
+    userId: number,
     tags: string[] = [],
   ): Promise<string> {
     if (!this.table) throw new Error("Memory store not initialized");
@@ -83,6 +86,7 @@ export class MemoryStore {
     await this.table.add([
       {
         id,
+        userId,
         content,
         type,
         tags: tags.join(","),
@@ -97,25 +101,34 @@ export class MemoryStore {
   async searchMemories(
     query: string,
     limit: number = 5,
-    typeFilter?: MemoryType,
+    options: { typeFilter?: MemoryType; userIdFilter?: number } = {},
   ): Promise<MemoryWithDistance[]> {
     if (!this.table) throw new Error("Memory store not initialized");
 
     const queryVector = await generateEmbedding(query);
+
+    const conditions: string[] = [];
+    if (options.typeFilter) {
+      conditions.push(`type = '${options.typeFilter}'`);
+    }
+    if (options.userIdFilter !== undefined) {
+      conditions.push(`userId = ${options.userIdFilter}`);
+    }
 
     let search = this.table
       .vectorSearch(queryVector)
       .distanceType("cosine")
       .limit(limit);
 
-    if (typeFilter) {
-      search = search.where(`type = '${typeFilter}'`);
+    if (conditions.length > 0) {
+      search = search.where(conditions.join(" AND "));
     }
 
     const results = await search.toArray();
 
     return results.map((row) => ({
       id: row.id as string,
+      userId: row.userId as number,
       content: row.content as string,
       type: row.type as MemoryType,
       tags: row.tags as string,
@@ -132,7 +145,7 @@ export class MemoryStore {
 
     const results = await this.table
       .query()
-      .select(["id", "content", "type", "tags", "timestamp"])
+      .select(["id", "userId", "content", "type", "tags", "timestamp"])
       .limit(limit)
       .toArray();
 
@@ -143,6 +156,7 @@ export class MemoryStore {
 
     return results.map((row) => ({
       id: row.id as string,
+      userId: row.userId as number,
       content: row.content as string,
       type: row.type as MemoryType,
       tags: row.tags as string,
@@ -170,11 +184,12 @@ export class MemoryStore {
 
     const results = await this.table
       .query()
-      .select(["id", "content", "type", "tags", "timestamp"])
+      .select(["id", "userId", "content", "type", "tags", "timestamp"])
       .toArray();
 
     return results.map((row) => ({
       id: row.id as string,
+      userId: row.userId as number,
       content: row.content as string,
       type: row.type as MemoryType,
       tags: row.tags as string,
