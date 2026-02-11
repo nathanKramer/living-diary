@@ -228,6 +228,29 @@ export class MemoryStore {
     }));
   }
 
+  async getUserFacts(userId: number): Promise<Memory[]> {
+    if (!this.table) throw new Error("Memory store not initialized");
+
+    const count = await this.table.countRows();
+    if (count === 0) return [];
+
+    const results = await this.table
+      .query()
+      .select(["id", "userId", "content", "type", "tags", "timestamp", "photoFileId"])
+      .where(`type = 'user_fact' AND userId = ${userId}`)
+      .toArray();
+
+    return results.map((row) => ({
+      id: row.id as string,
+      userId: row.userId as number,
+      content: row.content as string,
+      type: row.type as MemoryType,
+      tags: row.tags as string,
+      timestamp: row.timestamp as number,
+      photoFileId: (row.photoFileId as string) || undefined,
+    }));
+  }
+
   async deleteMemory(id: string): Promise<void> {
     if (!this.table) throw new Error("Memory store not initialized");
     await this.table.delete(`id = '${id}'`);

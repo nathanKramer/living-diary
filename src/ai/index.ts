@@ -30,9 +30,32 @@ export async function generateDiaryResponse(
 ): Promise<string> {
   const messages = buildMessages(recentMessages);
 
+  // Always provide memory context so the bot feels like it remembers
+  const [userFacts, recentMemories] = await Promise.all([
+    memory.getUserFacts(userId),
+    memory.getRecentMemories(10),
+  ]);
+
+  const contextParts: string[] = [];
+  if (userFacts.length > 0) {
+    contextParts.push(
+      "### Known facts about this user\n" +
+        userFacts.map((m) => `- ${m.content}`).join("\n"),
+    );
+  }
+  if (recentMemories.length > 0) {
+    contextParts.push(
+      "### Recent memories\n" +
+        recentMemories.map(formatMemory).join("\n"),
+    );
+  }
+
+  const memoryContext =
+    contextParts.length > 0 ? contextParts.join("\n\n") : undefined;
+
   const { text } = await generateText({
     model: anthropic(config.aiModel),
-    system: buildSystemPrompt(persona),
+    system: buildSystemPrompt(persona, memoryContext),
     messages,
     tools: {
       search_memories: tool({
@@ -72,10 +95,7 @@ export async function generateDiaryResponse(
           "Get known facts about the current user (their preferences, background, relationships, etc.). Use this at the start of a conversation or when you need to recall who you're talking to.",
         inputSchema: z.object({}),
         execute: async () => {
-          const results = await memory.searchMemories("", 20, {
-            typeFilter: "user_fact",
-            userIdFilter: userId,
-          });
+          const results = await memory.getUserFacts(userId);
           if (results.length === 0) return "No known facts about this user yet.";
           return results.map((m) => m.content).join("\n");
         },

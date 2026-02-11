@@ -6,9 +6,10 @@ interface Props {
   loading: boolean;
   onLoadMore?: () => void;
   hasMore?: boolean;
+  onDelete?: (id: string) => void;
 }
 
-export function MemoryList({ memories, loading, onLoadMore, hasMore }: Props) {
+export function MemoryList({ memories, loading, onLoadMore, hasMore, onDelete }: Props) {
   if (loading && memories.length === 0) {
     return <p className="empty-state">Loading memories...</p>;
   }
@@ -20,7 +21,7 @@ export function MemoryList({ memories, loading, onLoadMore, hasMore }: Props) {
   return (
     <div className="memory-list">
       {memories.map((m) => (
-        <MemoryCard key={m.id} memory={m} />
+        <MemoryCard key={m.id} memory={m} onDelete={onDelete} />
       ))}
       {hasMore && onLoadMore && (
         <button className="load-more" onClick={onLoadMore} disabled={loading}>

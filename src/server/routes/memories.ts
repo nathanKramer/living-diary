@@ -79,5 +79,16 @@ export function memoriesRouter(memory: MemoryStore): Router {
     }
   });
 
+  // DELETE /api/memories/:id — delete a single memory
+  router.delete("/:id", async (req, res) => {
+    try {
+      await memory.deleteMemory(req.params.id);
+      res.json({ ok: true });
+    } catch (err) {
+      console.error("API DELETE /memories/:id error:", err);
+      res.status(500).json({ error: "Failed to delete memory" });
+    }
+  });
+
   return router;
 }

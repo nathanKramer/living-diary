@@ -24,6 +24,13 @@ Return a JSON object with this exact shape:
 - **diary_entry**: A significant event, experience, emotion, or reflection from the conversation. These are episodic — tied to a moment in time.
   Examples: "Had a stressful day at work — a production outage lasted 3 hours", "Feeling excited about starting a new side project"
 
+## Context
+
+You will be given existing memories as context. Use them to:
+- Enrich extracted memories with known relationships and details (e.g. if you know "Lizzy is the user's sister" and the user says "Lizzy's birthday is March 5th", store "User's sister Lizzy's birthday is March 5th")
+- Avoid extracting facts that are already stored
+- Understand who people and things are when the user refers to them casually
+
 ## Rules
 
 - Only extract NEW information the user is sharing for the first time
@@ -89,10 +96,30 @@ export async function extractAndStoreMemories(
 
   const conversationText = lastMessage.content;
 
+  // Fetch relevant context: all user facts + semantically related memories
+  const [userFacts, related] = await Promise.all([
+    memory.getUserFacts(userId),
+    memory.searchMemories(conversationText, 5),
+  ]);
+
+  // Deduplicate (a related memory might also be a user fact)
+  const seen = new Set<string>();
+  const contextMemories: string[] = [];
+  for (const m of [...userFacts, ...related]) {
+    if (!seen.has(m.id)) {
+      seen.add(m.id);
+      contextMemories.push(`- (${m.type}) ${m.content}`);
+    }
+  }
+
+  const contextBlock = contextMemories.length > 0
+    ? `\n\nExisting memories:\n${contextMemories.join("\n")}\n\nNew message from user:`
+    : "";
+
   const { text } = await generateText({
     model: anthropic(config.aiModel),
     system: EXTRACTION_PROMPT,
-    prompt: conversationText,
+    prompt: `${contextBlock}\n${conversationText}`,
   });
 
   const result = parseExtraction(text);

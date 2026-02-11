@@ -20,12 +20,12 @@ export class UnauthorizedError extends Error {
   }
 }
 
-async function apiFetch<T>(path: string): Promise<T> {
+async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const token = getToken();
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = { ...options?.headers as Record<string, string> };
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
-  const res = await fetch(path, { headers });
+  const res = await fetch(path, { ...options, headers });
   if (res.status === 401) throw new UnauthorizedError();
   if (!res.ok) throw new Error(`API error: ${res.status}`);
   return res.json() as Promise<T>;
@@ -54,4 +54,7 @@ export const api = {
     ),
 
   getStats: () => apiFetch<Stats>("/api/memories/stats"),
+
+  deleteMemory: (id: string) =>
+    apiFetch<{ ok: boolean }>(`/api/memories/${id}`, { method: "DELETE" }),
 };

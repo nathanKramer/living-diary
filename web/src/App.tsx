@@ -53,6 +53,16 @@ export function App() {
     setLimit((prev) => prev + PAGE_SIZE);
   };
 
+  const handleDelete = async (id: string) => {
+    try {
+      await api.deleteMemory(id);
+      setMemories((prev) => prev.filter((m) => m.id !== id));
+      setSearchResults((prev) => prev.filter((m) => m.id !== id));
+    } catch (err) {
+      console.error("Failed to delete memory:", err);
+    }
+  };
+
   return (
     <AuthGate>
       <Layout activeTab={tab} onTabChange={setTab}>
@@ -62,13 +72,14 @@ export function App() {
             loading={loading}
             onLoadMore={handleLoadMore}
             hasMore={memories.length >= limit}
+            onDelete={handleDelete}
           />
         )}
         {tab === "search" && (
           <>
             <SearchBar onSearch={handleSearch} loading={searchLoading} />
             {hasSearched && (
-              <MemoryList memories={searchResults} loading={searchLoading} />
+              <MemoryList memories={searchResults} loading={searchLoading} onDelete={handleDelete} />
             )}
           </>
         )}

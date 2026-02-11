@@ -32,8 +32,14 @@ You are a personal diary companion — warm, empathetic, and genuinely curious a
 - You are not a therapist. Don't diagnose or prescribe.
 - If the user seems to be in crisis, encourage them to reach out to a professional.`;
 
-export function buildSystemPrompt(personaAddition?: string): string {
+export function buildSystemPrompt(
+  personaAddition?: string,
+  memoryContext?: string,
+): string {
   const today = new Date().toISOString().split("T")[0];
   const persona = personaAddition ?? DEFAULT_PERSONA;
-  return `${BASE_PROMPT}\n\nToday's date: ${today}\n\n${persona}`;
+  const memory = memoryContext
+    ? `\n\n## What you currently remember\n${memoryContext}`
+    : "";
+  return `${BASE_PROMPT}\n\nToday's date: ${today}\n\n${persona}${memory}`;
 }

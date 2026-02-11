@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { Memory } from "@shared/types";
 
 const TYPE_COLORS: Record<string, string> = {
@@ -24,9 +25,11 @@ function formatType(type: string): string {
 
 interface Props {
   memory: Memory;
+  onDelete?: (id: string) => void;
 }
 
-export function MemoryCard({ memory }: Props) {
+export function MemoryCard({ memory, onDelete }: Props) {
+  const [confirming, setConfirming] = useState(false);
   const tags = memory.tags ? memory.tags.split(",").filter(Boolean) : [];
 
   return (
@@ -38,7 +41,28 @@ export function MemoryCard({ memory }: Props) {
         >
           {formatType(memory.type)}
         </span>
-        <span className="memory-date">{formatDate(memory.timestamp)}</span>
+        <div className="memory-header-right">
+          <span className="memory-date">{formatDate(memory.timestamp)}</span>
+          {onDelete && !confirming && (
+            <button
+              className="delete-btn"
+              onClick={() => setConfirming(true)}
+              title="Delete memory"
+            >
+              &times;
+            </button>
+          )}
+          {onDelete && confirming && (
+            <span className="confirm-delete">
+              <button className="delete-confirm" onClick={() => onDelete(memory.id)}>
+                Delete
+              </button>
+              <button className="delete-cancel" onClick={() => setConfirming(false)}>
+                Cancel
+              </button>
+            </span>
+          )}
+        </div>
       </div>
       <p className="memory-content">{memory.content}</p>
       {tags.length > 0 && (
