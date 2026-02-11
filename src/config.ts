@@ -18,4 +18,6 @@ export const config = {
   aiModel: process.env["AI_MODEL"] ?? "claude-sonnet-4-5-20250929",
   dataDir: process.env["DATA_DIR"] ?? "./data",
   timezone: process.env["TIMEZONE"] ?? "UTC",
+  dashboardPort: Number(process.env["DASHBOARD_PORT"] ?? "3000"),
+  dashboardToken: requireEnv("DASHBOARD_TOKEN"),
 } as const;

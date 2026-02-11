@@ -2,6 +2,7 @@ import { config } from "./config.js";
 import { createBot } from "./bot/index.js";
 import { MemoryStore } from "./memory/index.js";
 import { loadPersona } from "./persona/index.js";
+import { startServer } from "./server/index.js";
 
 async function main() {
   console.log("Living Diary starting...");
@@ -11,6 +12,9 @@ async function main() {
 
   const memory = new MemoryStore();
   await memory.init();
+
+  // Start web dashboard
+  startServer(memory);
 
   const persona = await loadPersona();
   if (persona) {

@@ -1,0 +1,57 @@
+import type { Memory, MemoryType } from "@shared/types";
+
+const TOKEN_KEY = "dashboard_token";
+
+export function getToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+export function setToken(token: string): void {
+  localStorage.setItem(TOKEN_KEY, token);
+}
+
+export function clearToken(): void {
+  localStorage.removeItem(TOKEN_KEY);
+}
+
+export class UnauthorizedError extends Error {
+  constructor() {
+    super("Unauthorized");
+  }
+}
+
+async function apiFetch<T>(path: string): Promise<T> {
+  const token = getToken();
+  const headers: Record<string, string> = {};
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  const res = await fetch(path, { headers });
+  if (res.status === 401) throw new UnauthorizedError();
+  if (!res.ok) throw new Error(`API error: ${res.status}`);
+  return res.json() as Promise<T>;
+}
+
+export interface Stats {
+  count: number;
+  byType: Record<string, number>;
+  oldest: number | null;
+  newest: number | null;
+}
+
+export const api = {
+  getRecent: (limit = 50) =>
+    apiFetch<{ memories: Memory[] }>(`/api/memories?limit=${limit}`),
+
+  search: (q: string, limit = 10, type?: MemoryType) => {
+    const params = new URLSearchParams({ q, limit: String(limit) });
+    if (type) params.set("type", type);
+    return apiFetch<{ memories: Memory[] }>(`/api/memories/search?${params}`);
+  },
+
+  dateRange: (start: number, end: number, limit = 20) =>
+    apiFetch<{ memories: Memory[] }>(
+      `/api/memories/date-range?start=${start}&end=${end}&limit=${limit}`,
+    ),
+
+  getStats: () => apiFetch<Stats>("/api/memories/stats"),
+};

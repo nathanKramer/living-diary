@@ -3,3 +3,5 @@ dist/
 data/
 .env
 *.tsbuildinfo
+web/node_modules/
+web/dist/

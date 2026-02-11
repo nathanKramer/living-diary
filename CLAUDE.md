@@ -17,21 +17,32 @@ An AI-powered memory companion that lives in Telegram. It remembers conversation
 
 ```
 src/
-  index.ts              # Entry point — inits memory, persona, bot, command menu
+  index.ts              # Entry point — inits memory, starts Express, creates bot
   config.ts             # Env var loading with validation
+  shared/types.ts       # Shared types (Memory, MemoryType) used by backend and web
   bot/index.ts          # grammY bot — auth, commands, message handler
   ai/
-    index.ts            # generateDiaryResponse() — tool-calling LLM with 4 memory tools
+    index.ts            # generateDiaryResponse() — tool-calling LLM with 5 memory tools
     system-prompt.ts    # Base prompt + persona layering, injects today's date
     extract.ts          # Background memory extraction from user messages
     configure.ts        # /configure — generates persona from user description
+    describe-photo.ts   # Claude vision — describes photos for memory storage
   memory/index.ts       # MemoryStore class — LanceDB CRUD with vector dedup
   persona/index.ts      # Load/save persona config to data/persona.json
+  server/
+    index.ts            # Express app — serves dashboard API and static files
+    routes/memories.ts  # REST API for memory browsing
+    middleware/auth.ts   # Bearer token auth for dashboard
+web/                    # React dashboard (Vite, separate package.json)
+  src/
+    App.tsx             # Tab-based root (Recent / Search / Stats)
+    api.ts              # Fetch wrapper with auth token
+    components/         # AuthGate, Layout, MemoryList, MemoryCard, SearchBar, StatsPanel
 ```
 
 ## Key design decisions
 
-**Tool calling over hardcoded queries**: The AI has 4 tools (`search_memories`, `search_by_date`, `get_user_facts`, `get_recent_memories`) and decides which to call based on the conversation. Uses `stopWhen: stepCountIs(5)` for multi-step tool loops.
+**Tool calling over hardcoded queries**: The AI has 5 tools (`search_memories`, `search_by_date`, `get_user_facts`, `get_recent_memories`, `send_photo`) and decides which to call based on the conversation. Uses `stopWhen: stepCountIs(5)` for multi-step tool loops.
 
 **AI SDK v6 specifics**: Tools use `inputSchema` (not `parameters`). Multi-step uses `stopWhen: stepCountIs(n)` (not `maxSteps`). The `tool()` helper is from `ai` package.
 
@@ -43,11 +54,14 @@ src/
 
 **Extraction pipeline**: Runs in background after each reply. Only feeds user messages (not AI responses) to avoid re-storing recalled memories. Extraction prompt instructs to only extract NEW information.
 
+**Web dashboard**: Express runs in the same process as the bot, sharing the MemoryStore instance (LanceDB is file-locked). React app in `web/` with its own Vite build. Types shared via `src/shared/types.ts` and a Vite alias `@shared`. Auth via optional `DASHBOARD_TOKEN` env var.
+
 ## Commands
 
-`pnpm dev` — run with tsx watch
-`pnpm build` — compile TypeScript
-`pnpm start` — run compiled JS
+`pnpm dev` — run bot + Express API with tsx watch
+`pnpm dev:web` — run Vite dev server for React dashboard (proxy to :3000)
+`pnpm build` — compile backend TypeScript + build React app
+`pnpm start` — run compiled JS (serves both bot and dashboard)
 
 ## Environment variables
 
@@ -55,9 +69,9 @@ See `.env.example`. Required: `TELEGRAM_BOT_TOKEN`, `ANTHROPIC_API_KEY`, `OPENAI
 
 ## LanceDB schema
 
-Table `memories`: `id` (string), `userId` (float64), `content` (string), `type` (string), `tags` (string, comma-separated), `timestamp` (float64), `vector` (float32[1536]).
+Table `memories`: `id` (string), `userId` (float64), `content` (string), `type` (string), `tags` (string, comma-separated), `timestamp` (float64), `photoFileId` (string, nullable), `vector` (float32[1536]).
 
-Memory types: `diary_entry`, `user_fact`, `conversation_summary`, `reflection`.
+Memory types: `diary_entry`, `user_fact`, `conversation_summary`, `reflection`, `photo_memory`.
 
 Schema migration: `init()` checks for missing columns and recreates the table if needed (drops data — fine for dev).
 
@@ -66,6 +80,4 @@ Schema migration: `init()` checks for missing columns and recreates the table if
 See `PLAN.md` for full details. Unimplemented:
 - Proactive check-ins and reflections (node-cron scheduler)
 - Deployment setup (Docker, process management)
-- Safety guardrails and user commands (/forget, /export, /stats, /delete_all, /pause, /resume)
-- Rich diary features (search command, timeline, mood tracking)
 - Tests and documentation
