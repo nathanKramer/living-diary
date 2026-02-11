@@ -3,6 +3,7 @@ import { config } from "../config.js";
 import { generateDiaryResponse } from "../ai/index.js";
 import type { MemoryContext } from "../ai/index.js";
 import type { MemoryStore } from "../memory/index.js";
+import { extractAndStoreMemories } from "../ai/extract.js";
 
 export interface SessionData {
   /** Recent conversation turns for short-term context */
@@ -93,6 +94,17 @@ export function createBot(memory: MemoryStore): Bot<BotContext> {
       ctx.session.recentMessages.push({ role: "assistant", content: response });
 
       await ctx.reply(response);
+
+      // Extract and store memories in the background (don't block the reply)
+      const allExistingMemories = [
+        ...memoryContext.relevantMemories,
+        ...memoryContext.userFacts,
+      ];
+      extractAndStoreMemories(
+        ctx.session.recentMessages,
+        allExistingMemories,
+        memory,
+      ).catch((err) => console.error("Memory extraction failed:", err));
     } catch (err) {
       console.error("AI generation failed:", err);
       await ctx.reply(
