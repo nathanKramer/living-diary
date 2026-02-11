@@ -1,6 +1,7 @@
 import { config } from "./config.js";
 import { createBot } from "./bot/index.js";
 import { MemoryStore } from "./memory/index.js";
+import { loadPersona } from "./persona/index.js";
 
 async function main() {
   console.log("Living Diary starting...");
@@ -11,7 +12,14 @@ async function main() {
   const memory = new MemoryStore();
   await memory.init();
 
-  const bot = createBot(memory);
+  const persona = await loadPersona();
+  if (persona) {
+    console.log(`Persona loaded: "${persona.description}"`);
+  } else {
+    console.log("No persona configured, using default. Use /configure to set one.");
+  }
+
+  const bot = createBot(memory, persona);
 
   // Graceful shutdown
   const shutdown = () => {

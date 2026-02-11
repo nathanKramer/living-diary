@@ -4,6 +4,9 @@ import { generateDiaryResponse } from "../ai/index.js";
 import type { MemoryContext } from "../ai/index.js";
 import type { MemoryStore } from "../memory/index.js";
 import { extractAndStoreMemories } from "../ai/extract.js";
+import { generatePersona } from "../ai/configure.js";
+import { loadPersona, savePersona } from "../persona/index.js";
+import type { Persona } from "../persona/index.js";
 
 export interface SessionData {
   /** Recent conversation turns for short-term context */
@@ -16,8 +19,9 @@ function initialSessionData(): SessionData {
 
 export type BotContext = Context & { session: SessionData };
 
-export function createBot(memory: MemoryStore): Bot<BotContext> {
+export function createBot(memory: MemoryStore, initialPersona: Persona | null): Bot<BotContext> {
   const bot = new Bot<BotContext>(config.telegramBotToken);
+  let currentPersona = initialPersona;
 
   // Session middleware for short-term memory
   bot.use(session({ initial: initialSessionData }));
@@ -51,8 +55,61 @@ export function createBot(memory: MemoryStore): Bot<BotContext> {
         "/stats — Memory statistics\n" +
         "/pause — Stop proactive messages\n" +
         "/resume — Resume proactive messages\n" +
-        "/delete_all — Delete everything (careful!)\n\n" +
+        "/delete_all — Delete everything (careful!)\n" +
+        "/configure <description> — Change how I behave\n" +
+        "/persona — Show current persona\n\n" +
         "Or just send me a message and we'll talk."
+    );
+  });
+
+  bot.command("configure", async (ctx) => {
+    const description = ctx.match;
+    if (!description) {
+      await ctx.reply(
+        "Tell me how you'd like to use me. Examples:\n\n" +
+          "/configure A personal diary for reflecting on my day\n" +
+          "/configure A family diary shared between me, my wife, and our kids\n" +
+          "/configure A company knowledge base that remembers decisions and context",
+      );
+      return;
+    }
+
+    await ctx.replyWithChatAction("typing");
+
+    try {
+      const systemPromptAddition = await generatePersona(description);
+      const persona: Persona = {
+        description,
+        systemPromptAddition,
+        updatedAt: Date.now(),
+      };
+      await savePersona(persona);
+      currentPersona = persona;
+
+      await ctx.reply(
+        `Got it! I've updated my persona based on: "${description}"\n\n` +
+          "Here's how I'll behave now:\n\n" +
+          systemPromptAddition +
+          "\n\nUse /persona to review this, or /configure again to change it.",
+      );
+    } catch (err) {
+      console.error("Persona generation failed:", err);
+      await ctx.reply("Sorry, I had trouble generating a new persona. Try again.");
+    }
+  });
+
+  bot.command("persona", async (ctx) => {
+    if (!currentPersona) {
+      await ctx.reply(
+        "I'm using the default persona (personal diary companion).\n\n" +
+          "Use /configure <description> to customize how I behave.",
+      );
+      return;
+    }
+
+    await ctx.reply(
+      `Current configuration: "${currentPersona.description}"\n\n` +
+        currentPersona.systemPromptAddition,
     );
   });
 
@@ -97,6 +154,7 @@ export function createBot(memory: MemoryStore): Bot<BotContext> {
       const response = await generateDiaryResponse(
         ctx.session.recentMessages,
         memoryContext,
+        currentPersona?.systemPromptAddition,
       );
 
       // Store assistant response in short-term memory

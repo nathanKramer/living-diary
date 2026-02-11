@@ -62,7 +62,17 @@ export class MemoryStore {
 
     const tableNames = await this.db.tableNames();
     if (tableNames.includes(TABLE_NAME)) {
-      this.table = await this.db.openTable(TABLE_NAME);
+      const existing = await this.db.openTable(TABLE_NAME);
+      const schema = await existing.schema();
+      const hasUserId = schema.fields.some((f) => f.name === "userId");
+
+      if (!hasUserId) {
+        console.log("Schema outdated (missing userId), recreating table...");
+        await this.db.dropTable(TABLE_NAME);
+        this.table = await this.db.createEmptyTable(TABLE_NAME, tableSchema);
+      } else {
+        this.table = existing;
+      }
     } else {
       this.table = await this.db.createEmptyTable(TABLE_NAME, tableSchema);
     }

@@ -2,7 +2,7 @@ import { generateText } from "ai";
 import { anthropic } from "@ai-sdk/anthropic";
 import type { ModelMessage } from "ai";
 import { config } from "../config.js";
-import { SYSTEM_PROMPT } from "./system-prompt.js";
+import { buildSystemPrompt } from "./system-prompt.js";
 
 export interface MemoryContext {
   relevantMemories: string[];
@@ -55,12 +55,13 @@ function buildMessages(
 export async function generateDiaryResponse(
   recentMessages: Array<{ role: "user" | "assistant"; content: string }>,
   memoryContext: MemoryContext,
+  persona?: string,
 ): Promise<string> {
   const messages = buildMessages(recentMessages, memoryContext);
 
   const { text } = await generateText({
     model: anthropic(config.aiModel),
-    system: SYSTEM_PROMPT,
+    system: buildSystemPrompt(persona),
     messages,
   });
 
