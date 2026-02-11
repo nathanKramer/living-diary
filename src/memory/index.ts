@@ -28,6 +28,10 @@ const EMBEDDING_MODEL = "text-embedding-3-small";
 const VECTOR_DIM = 1536;
 const TABLE_NAME = "memories";
 
+// Cosine distance thresholds for deduplication (lower = more similar)
+const DEDUP_THRESHOLD_FACT = 0.10; // Aggressive — "I'm an engineer" ≈ "I work as a software engineer"
+const DEDUP_THRESHOLD_ENTRY = 0.05; // Tighter — similar days are still worth recording
+
 const tableSchema = new arrow.Schema([
   new arrow.Field("id", new arrow.Utf8(), false),
   new arrow.Field("userId", new arrow.Float64(), false),
@@ -87,11 +91,39 @@ export class MemoryStore {
     type: MemoryType,
     userId: number,
     tags: string[] = [],
-  ): Promise<string> {
+  ): Promise<string | null> {
     if (!this.table) throw new Error("Memory store not initialized");
 
-    const id = uuidv4();
     const vector = await generateEmbedding(content);
+
+    // Dedup: check for near-duplicate memories before inserting
+    const count = await this.table.countRows();
+    if (count > 0) {
+      const threshold = type === "user_fact"
+        ? DEDUP_THRESHOLD_FACT
+        : DEDUP_THRESHOLD_ENTRY;
+
+      const conditions = [`type = '${type}'`];
+      if (type === "user_fact") {
+        conditions.push(`userId = ${userId}`);
+      }
+
+      const similar = await this.table
+        .vectorSearch(vector)
+        .distanceType("cosine")
+        .where(conditions.join(" AND "))
+        .limit(1)
+        .toArray();
+
+      if (similar.length > 0 && (similar[0]!._distance as number) < threshold) {
+        console.log(
+          `Skipped duplicate ${type} (distance=${(similar[0]!._distance as number).toFixed(4)}): "${content}"`,
+        );
+        return null;
+      }
+    }
+
+    const id = uuidv4();
 
     await this.table.add([
       {

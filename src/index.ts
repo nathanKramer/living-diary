@@ -30,6 +30,21 @@ async function main() {
   process.on("SIGINT", shutdown);
   process.on("SIGTERM", shutdown);
 
+  // Register commands for Telegram's menu button
+  await bot.api.setMyCommands([
+    { command: "start", description: "Welcome message" },
+    { command: "help", description: "List all commands" },
+    { command: "configure", description: "Change how I behave" },
+    { command: "persona", description: "Show current persona" },
+    { command: "search", description: "Search your memories" },
+    { command: "stats", description: "Memory statistics" },
+    { command: "export", description: "Download all your data" },
+    { command: "forget", description: "Delete matching memories" },
+    { command: "pause", description: "Stop proactive messages" },
+    { command: "resume", description: "Resume proactive messages" },
+    { command: "delete_all", description: "Delete everything" },
+  ]);
+
   // TODO: Initialize scheduler (Task 6)
 
   console.log("Living Diary is ready. Listening for messages...");

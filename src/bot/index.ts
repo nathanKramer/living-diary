@@ -147,7 +147,6 @@ export function createBot(memory: MemoryStore, initialPersona: Persona | null): 
       // Extract and store memories in the background (don't block the reply)
       extractAndStoreMemories(
         ctx.session.recentMessages,
-        [],
         memory,
         userId,
       ).catch((err) => console.error("Memory extraction failed:", err));

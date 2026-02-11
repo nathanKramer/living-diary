@@ -26,10 +26,11 @@ Return a JSON object with this exact shape:
 
 ## Rules
 
-- Only extract information that is worth remembering long-term
+- Only extract NEW information the user is sharing for the first time
 - Do NOT extract small talk, greetings, or trivial exchanges
 - Do NOT extract things the AI said — only facts about or experiences of the user
-- Avoid duplicating facts that are already in the provided existing memories
+- Do NOT extract information the AI recalled from memory — if the Diary is repeating back stored memories, that is not new information
+- If the user is asking a question or querying past memories (e.g. "what happened on Monday?"), there is likely nothing new to extract
 - If there is nothing worth extracting, return {"memories": []}
 - Keep each memory concise — one clear idea per entry
 - Tags should be short topic labels: "work", "health", "relationships", "hobbies", "goals", "family", etc.
@@ -73,37 +74,39 @@ function parseExtraction(text: string): ExtractionResult {
 
 export async function extractAndStoreMemories(
   recentMessages: Array<{ role: "user" | "assistant"; content: string }>,
-  existingMemories: string[],
   memory: MemoryStore,
   userId: number,
 ): Promise<void> {
   // Only extract if there's enough conversation to work with
   if (recentMessages.length < 2) return;
 
-  // Build the extraction prompt with context
-  const conversationText = recentMessages
-    .slice(-6) // Last 3 exchanges
-    .map((m) => `${m.role === "user" ? "User" : "Diary"}: ${m.content}`)
-    .join("\n\n");
+  // Only extract from what the user said — not from AI responses
+  // (which may contain recalled memories we don't want to re-store)
+  const userMessages = recentMessages
+    .filter((m) => m.role === "user")
+    .slice(-3);
 
-  const existingContext =
-    existingMemories.length > 0
-      ? `\n\n## Existing memories (do not duplicate these)\n${existingMemories.join("\n")}`
-      : "";
+  if (userMessages.length === 0) return;
+
+  const conversationText = userMessages
+    .map((m) => m.content)
+    .join("\n\n");
 
   const { text } = await generateText({
     model: anthropic(config.aiModel),
     system: EXTRACTION_PROMPT,
-    prompt: `${conversationText}${existingContext}`,
+    prompt: conversationText,
   });
 
   const result = parseExtraction(text);
 
   if (result.memories.length === 0) return;
 
-  // Store each extracted memory
+  // Store each extracted memory (addMemory handles dedup via vector similarity)
   for (const mem of result.memories) {
     const id = await memory.addMemory(mem.content, mem.type, userId, mem.tags);
-    console.log(`Stored ${mem.type}: "${mem.content}" (${id})`);
+    if (id) {
+      console.log(`Stored ${mem.type}: "${mem.content}" (${id})`);
+    }
   }
 }
