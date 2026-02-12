@@ -1,52 +1,21 @@
-import type { ReactNode } from "react";
+import { NavLink, Outlet } from "react-router-dom";
 
-export type Tab = "all" | "search" | "people" | "stats" | "settings";
-
-interface Props {
-  activeTab: Tab;
-  onTabChange: (tab: Tab) => void;
-  children: ReactNode;
-}
-
-export function Layout({ activeTab, onTabChange, children }: Props) {
+export function Layout() {
   return (
     <div className="layout">
       <header>
         <h1>Living Diary</h1>
         <nav>
-          <button
-            className={activeTab === "all" ? "active" : ""}
-            onClick={() => onTabChange("all")}
-          >
-            All
-          </button>
-          <button
-            className={activeTab === "search" ? "active" : ""}
-            onClick={() => onTabChange("search")}
-          >
-            Search
-          </button>
-          <button
-            className={activeTab === "people" ? "active" : ""}
-            onClick={() => onTabChange("people")}
-          >
-            People
-          </button>
-          <button
-            className={activeTab === "stats" ? "active" : ""}
-            onClick={() => onTabChange("stats")}
-          >
-            Stats
-          </button>
-          <button
-            className={activeTab === "settings" ? "active" : ""}
-            onClick={() => onTabChange("settings")}
-          >
-            Settings
-          </button>
+          <NavLink to="/" end>All</NavLink>
+          <NavLink to="/search">Search</NavLink>
+          <NavLink to="/people">People</NavLink>
+          <NavLink to="/stats">Stats</NavLink>
+          <NavLink to="/settings">Settings</NavLink>
         </nav>
       </header>
-      <main>{children}</main>
+      <main>
+        <Outlet />
+      </main>
     </div>
   );
 }

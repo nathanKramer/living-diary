@@ -1,26 +1,22 @@
 import { useState, useEffect, useCallback } from "react";
+import { Routes, Route } from "react-router-dom";
 import type { Memory, MemoryType } from "@shared/types";
 import { api } from "./api";
 import { AuthGate } from "./components/AuthGate";
-import { Layout, type Tab } from "./components/Layout";
+import { Layout } from "./components/Layout";
 import { MemoryList } from "./components/MemoryList";
 import { SearchBar } from "./components/SearchBar";
 import { StatsPanel } from "./components/StatsPanel";
 import { PersonaPanel } from "./components/PersonaPanel";
 import { PeoplePanel } from "./components/PeoplePanel";
+import { PersonDetailPage } from "./components/PersonDetailPage";
 
 const PAGE_SIZE = 50;
 
-export function App() {
-  const [tab, setTab] = useState<Tab>("all");
+function AllMemories() {
   const [memories, setMemories] = useState<Memory[]>([]);
   const [loading, setLoading] = useState(false);
   const [limit, setLimit] = useState(PAGE_SIZE);
-
-  // Search state
-  const [searchResults, setSearchResults] = useState<Memory[]>([]);
-  const [searchLoading, setSearchLoading] = useState(false);
-  const [hasSearched, setHasSearched] = useState(false);
 
   const loadRecent = useCallback(async (lim: number) => {
     setLoading(true);
@@ -38,6 +34,31 @@ export function App() {
     loadRecent(limit);
   }, [limit, loadRecent]);
 
+  const handleDelete = async (id: string) => {
+    try {
+      await api.deleteMemory(id);
+      setMemories((prev) => prev.filter((m) => m.id !== id));
+    } catch (err) {
+      console.error("Failed to delete memory:", err);
+    }
+  };
+
+  return (
+    <MemoryList
+      memories={memories}
+      loading={loading}
+      onLoadMore={() => setLimit((prev) => prev + PAGE_SIZE)}
+      hasMore={memories.length >= limit}
+      onDelete={handleDelete}
+    />
+  );
+}
+
+function SearchPage() {
+  const [searchResults, setSearchResults] = useState<Memory[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
+
   const handleSearch = async (query: string, type?: MemoryType) => {
     setSearchLoading(true);
     setHasSearched(true);
@@ -51,14 +72,9 @@ export function App() {
     }
   };
 
-  const handleLoadMore = () => {
-    setLimit((prev) => prev + PAGE_SIZE);
-  };
-
   const handleDelete = async (id: string) => {
     try {
       await api.deleteMemory(id);
-      setMemories((prev) => prev.filter((m) => m.id !== id));
       setSearchResults((prev) => prev.filter((m) => m.id !== id));
     } catch (err) {
       console.error("Failed to delete memory:", err);
@@ -66,29 +82,28 @@ export function App() {
   };
 
   return (
+    <>
+      <SearchBar onSearch={handleSearch} loading={searchLoading} />
+      {hasSearched && (
+        <MemoryList memories={searchResults} loading={searchLoading} onDelete={handleDelete} />
+      )}
+    </>
+  );
+}
+
+export function App() {
+  return (
     <AuthGate>
-      <Layout activeTab={tab} onTabChange={setTab}>
-        {tab === "all" && (
-          <MemoryList
-            memories={memories}
-            loading={loading}
-            onLoadMore={handleLoadMore}
-            hasMore={memories.length >= limit}
-            onDelete={handleDelete}
-          />
-        )}
-        {tab === "search" && (
-          <>
-            <SearchBar onSearch={handleSearch} loading={searchLoading} />
-            {hasSearched && (
-              <MemoryList memories={searchResults} loading={searchLoading} onDelete={handleDelete} />
-            )}
-          </>
-        )}
-        {tab === "people" && <PeoplePanel />}
-        {tab === "stats" && <StatsPanel />}
-        {tab === "settings" && <PersonaPanel />}
-      </Layout>
+      <Routes>
+        <Route element={<Layout />}>
+          <Route index element={<AllMemories />} />
+          <Route path="search" element={<SearchPage />} />
+          <Route path="people" element={<PeoplePanel />} />
+          <Route path="people/:id" element={<PersonDetailPage />} />
+          <Route path="stats" element={<StatsPanel />} />
+          <Route path="settings" element={<PersonaPanel />} />
+        </Route>
+      </Routes>
     </AuthGate>
   );
 }
