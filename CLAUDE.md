@@ -55,6 +55,8 @@ web/                    # React dashboard (Vite, separate package.json)
 
 **Extraction pipeline**: Runs in background after each reply. Only feeds user messages (not AI responses) to avoid re-storing recalled memories. Extraction prompt instructs to only extract NEW information.
 
+**Safety guardrails**: Two layers prevent storage of sensitive data (passwords, API keys, tokens, credit card numbers, etc.). The system prompt instructs the bot to warn users that memories are not a safe place for secrets. The extraction prompt has a hard rule to never extract credentials or sensitive information.
+
 **Web dashboard**: Express runs in the same process as the bot, sharing the MemoryStore and PersonaHolder instances. React app in `web/` with its own Vite build. Types shared via `src/shared/types.ts` and a Vite alias `@shared`. Auth via optional `DASHBOARD_TOKEN` env var. Tabs: All (paginated memory list), Search (semantic vector search), Stats, Settings (persona management).
 
 ## Commands
