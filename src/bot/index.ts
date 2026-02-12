@@ -7,6 +7,7 @@ import { generatePersona } from "../ai/configure.js";
 import { describePhoto } from "../ai/describe-photo.js";
 import { savePersona, PersonaHolder } from "../persona/index.js";
 import type { Persona } from "../persona/index.js";
+import type { PeopleGraphHolder } from "../people/index.js";
 
 const pendingDeletes = new Map<number, string[]>();
 
@@ -42,7 +43,7 @@ function initialSessionData(): SessionData {
 
 export type BotContext = Context & { session: SessionData };
 
-export function createBot(memory: MemoryStore, personaHolder: PersonaHolder): Bot<BotContext> {
+export function createBot(memory: MemoryStore, personaHolder: PersonaHolder, peopleHolder: PeopleGraphHolder): Bot<BotContext> {
   const bot = new Bot<BotContext>(config.telegramBotToken);
 
   // Session middleware for short-term memory
@@ -386,6 +387,7 @@ export function createBot(memory: MemoryStore, personaHolder: PersonaHolder): Bo
         memory,
         userId,
         personaHolder.current?.systemPromptAddition,
+        peopleHolder,
         async (fileId, caption) => {
           await ctx.replyWithPhoto(fileId, caption ? { caption } : undefined);
         },
@@ -402,6 +404,7 @@ export function createBot(memory: MemoryStore, personaHolder: PersonaHolder): Bo
         memory,
         userId,
         ctx.from.first_name,
+        peopleHolder,
       ).catch((err) => console.error("Memory extraction failed:", err));
     } catch (err) {
       console.error("AI generation failed:", err);

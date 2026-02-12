@@ -1,4 +1,4 @@
-import type { Memory, MemoryType } from "@shared/types";
+import type { Memory, MemoryType, PeopleGraph, Person, Relationship, RelationshipType } from "@shared/types";
 
 const TOKEN_KEY = "dashboard_token";
 
@@ -83,4 +83,35 @@ export const api = {
 
   resetPersona: () =>
     apiFetch<{ ok: boolean }>("/api/persona", { method: "DELETE" }),
+
+  // People
+  getPeople: () =>
+    apiFetch<PeopleGraph>("/api/people"),
+
+  updatePerson: (id: string, updates: { name?: string; aliases?: string[]; bio?: string }) =>
+    apiFetch<{ person: Person }>(`/api/people/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updates),
+    }),
+
+  deletePerson: (id: string) =>
+    apiFetch<{ ok: boolean }>(`/api/people/${id}`, { method: "DELETE" }),
+
+  mergePeople: (keepId: string, mergeId: string) =>
+    apiFetch<{ person: Person }>(`/api/people/${keepId}/merge`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mergeId }),
+    }),
+
+  addRelationship: (personId1: string, personId2: string, type: RelationshipType, label: string) =>
+    apiFetch<{ relationship: Relationship }>("/api/people/relationships", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ personId1, personId2, type, label }),
+    }),
+
+  deleteRelationship: (id: string) =>
+    apiFetch<{ ok: boolean }>(`/api/people/relationships/${id}`, { method: "DELETE" }),
 };

@@ -7,6 +7,7 @@ import { MemoryList } from "./components/MemoryList";
 import { SearchBar } from "./components/SearchBar";
 import { StatsPanel } from "./components/StatsPanel";
 import { PersonaPanel } from "./components/PersonaPanel";
+import { PeoplePanel } from "./components/PeoplePanel";
 
 const PAGE_SIZE = 50;
 
@@ -84,6 +85,7 @@ export function App() {
             )}
           </>
         )}
+        {tab === "people" && <PeoplePanel />}
         {tab === "stats" && <StatsPanel />}
         {tab === "settings" && <PersonaPanel />}
       </Layout>

@@ -2,6 +2,7 @@ import { config } from "./config.js";
 import { createBot } from "./bot/index.js";
 import { MemoryStore } from "./memory/index.js";
 import { loadPersona, PersonaHolder } from "./persona/index.js";
+import { loadPeopleGraph, PeopleGraphHolder } from "./people/index.js";
 import { startServer } from "./server/index.js";
 
 async function main() {
@@ -21,10 +22,14 @@ async function main() {
     console.log("No persona configured, using default. Use /configure to set one.");
   }
 
-  // Start web dashboard
-  startServer(memory, personaHolder);
+  const peopleGraph = await loadPeopleGraph();
+  const peopleHolder = new PeopleGraphHolder(peopleGraph);
+  console.log(`People graph loaded: ${peopleGraph.people.length} people, ${peopleGraph.relationships.length} relationships`);
 
-  const bot = createBot(memory, personaHolder);
+  // Start web dashboard
+  startServer(memory, personaHolder, peopleHolder);
+
+  const bot = createBot(memory, personaHolder, peopleHolder);
 
   // Graceful shutdown
   const shutdown = () => {

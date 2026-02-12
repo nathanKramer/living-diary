@@ -587,3 +587,506 @@ nav button.active {
   color: #64748b;
   font-size: 0.9rem;
 }
+
+/* People panel */
+.people-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.person-card {
+  background: #1e293b;
+  padding: 1rem;
+  border-radius: 10px;
+  border: 1px solid #334155;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.person-card:hover {
+  border-color: #3b82f6;
+}
+
+.person-card-header {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.person-name {
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.person-card-aliases {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.person-card-bio {
+  color: #94a3b8;
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+
+.person-card-rels {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.rel-badge-small {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: 9999px;
+  color: white;
+}
+
+/* Person detail */
+.person-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.back-btn {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 0;
+  align-self: flex-start;
+}
+
+.back-btn:hover {
+  color: #e2e8f0;
+}
+
+.person-info {
+  background: #1e293b;
+  padding: 1.25rem;
+  border-radius: 10px;
+  border: 1px solid #334155;
+}
+
+.person-info h2 {
+  font-size: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.person-aliases {
+  font-size: 0.85rem;
+  color: #64748b;
+  margin-bottom: 0.5rem;
+}
+
+.person-bio {
+  color: #cbd5e1;
+  font-size: 0.95rem;
+  margin-bottom: 0.5rem;
+}
+
+.person-meta {
+  font-size: 0.75rem;
+  color: #475569;
+  margin-bottom: 0.75rem;
+}
+
+.person-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.edit-btn,
+.merge-btn {
+  padding: 0.4rem 0.75rem;
+  background: transparent;
+  color: #94a3b8;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.edit-btn:hover,
+.merge-btn:hover {
+  color: #e2e8f0;
+  border-color: #475569;
+}
+
+.delete-person-btn {
+  padding: 0.4rem 0.75rem;
+  background: transparent;
+  color: #94a3b8;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.delete-person-btn:hover {
+  color: #ef4444;
+  border-color: #ef4444;
+}
+
+/* Person edit form */
+.person-edit {
+  background: #1e293b;
+  padding: 1.25rem;
+  border-radius: 10px;
+  border: 1px solid #334155;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.edit-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.edit-field label {
+  font-size: 0.75rem;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.edit-field input,
+.edit-field textarea {
+  padding: 0.6rem;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  color: #e2e8f0;
+  font-size: 0.9rem;
+  font-family: inherit;
+}
+
+.edit-field input:focus,
+.edit-field textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
+
+.edit-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.save-btn {
+  padding: 0.5rem 0.75rem;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.save-btn:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.save-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cancel-btn {
+  padding: 0.5rem 0.75rem;
+  background: transparent;
+  color: #94a3b8;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.cancel-btn:hover {
+  color: #e2e8f0;
+  border-color: #475569;
+}
+
+/* Merge section */
+.merge-section {
+  background: #1e293b;
+  padding: 1rem;
+  border-radius: 10px;
+  border: 1px solid #334155;
+}
+
+.merge-hint {
+  font-size: 0.85rem;
+  color: #94a3b8;
+  margin-bottom: 0.5rem;
+}
+
+.merge-controls {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.merge-controls select {
+  flex: 1;
+  padding: 0.5rem;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  color: #e2e8f0;
+  font-size: 0.85rem;
+}
+
+.merge-controls button {
+  padding: 0.5rem 0.75rem;
+  background: #f59e0b;
+  color: #0f172a;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.merge-controls button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Relationships section */
+.relationships-section {
+  background: #1e293b;
+  padding: 1.25rem;
+  border-radius: 10px;
+  border: 1px solid #334155;
+}
+
+.relationships-section h3 {
+  font-size: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.empty-hint {
+  color: #64748b;
+  font-size: 0.85rem;
+}
+
+.relationship-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #0f172a;
+}
+
+.relationship-row:last-of-type {
+  border-bottom: none;
+}
+
+.rel-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: 9999px;
+  color: white;
+  flex-shrink: 0;
+}
+
+.rel-label {
+  color: #94a3b8;
+  font-size: 0.85rem;
+}
+
+.rel-other {
+  color: #e2e8f0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-left: auto;
+}
+
+.rel-delete {
+  background: none;
+  border: none;
+  color: #475569;
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 0 0.25rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.rel-delete:hover {
+  color: #ef4444;
+}
+
+.add-rel-btn {
+  margin-top: 0.75rem;
+  background: none;
+  border: 1px dashed #334155;
+  color: #64748b;
+  padding: 0.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  width: 100%;
+}
+
+.add-rel-btn:hover {
+  color: #94a3b8;
+  border-color: #475569;
+}
+
+.add-rel-form {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.add-rel-form select,
+.add-rel-form input {
+  padding: 0.5rem;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  color: #e2e8f0;
+  font-size: 0.85rem;
+}
+
+.add-rel-form select:focus,
+.add-rel-form input:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
+
+.add-rel-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.add-rel-actions button {
+  padding: 0.4rem 0.75rem;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.add-rel-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.add-rel-actions .cancel-btn {
+  background: transparent;
+  color: #94a3b8;
+  border: 1px solid #334155;
+}
+
+/* People panel content wrapper */
+.people-panel-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* People view toggle */
+.people-view-toggle {
+  display: flex;
+  gap: 0.5rem;
+  align-self: flex-end;
+}
+
+.people-view-toggle button {
+  padding: 0.4rem 0.75rem;
+  background: transparent;
+  color: #94a3b8;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.people-view-toggle button:hover {
+  color: #e2e8f0;
+  border-color: #475569;
+}
+
+.people-view-toggle button.active {
+  background: #1e293b;
+  color: #e2e8f0;
+  border-color: #3b82f6;
+}
+
+/* Force-directed graph */
+.people-graph-container {
+  background: #1e293b;
+  border-radius: 10px;
+  border: 1px solid #334155;
+  overflow: hidden;
+}
+
+.people-graph-svg {
+  display: block;
+  width: 100%;
+  cursor: grab;
+}
+
+.people-graph-svg:active {
+  cursor: grabbing;
+}
+
+.graph-node circle {
+  fill: #334155;
+  stroke: #3b82f6;
+  stroke-width: 2;
+  cursor: pointer;
+  transition: fill 0.15s;
+}
+
+.graph-node:hover circle {
+  fill: #475569;
+  stroke: #60a5fa;
+}
+
+.graph-node-label {
+  fill: #e2e8f0;
+  font-size: 11px;
+  font-weight: 600;
+  pointer-events: none;
+  user-select: none;
+}
+
+.graph-link-label {
+  fill: #64748b;
+  font-size: 9px;
+  pointer-events: none;
+  user-select: none;
+}
+
+.graph-single-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  cursor: pointer;
+  color: #e2e8f0;
+  font-weight: 600;
+  gap: 0.75rem;
+}
+
+.graph-single-circle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #334155;
+  border: 2px solid #3b82f6;
+}

@@ -20,3 +20,39 @@ export interface Memory {
 export interface MemoryWithDistance extends Memory {
   _distance: number;
 }
+
+// People graph types
+
+export type RelationshipType =
+  | "sibling"
+  | "parent"
+  | "child"
+  | "partner"
+  | "friend"
+  | "coworker"
+  | "pet"
+  | "other";
+
+export interface Person {
+  id: string;
+  name: string;
+  aliases: string[];
+  telegramUserId: number | null;
+  bio: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface Relationship {
+  id: string;
+  personId1: string;
+  personId2: string;
+  type: RelationshipType;
+  label: string;
+  createdAt: number;
+}
+
+export interface PeopleGraph {
+  people: Person[];
+  relationships: Relationship[];
+}

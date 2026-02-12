@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-export type Tab = "all" | "search" | "stats" | "settings";
+export type Tab = "all" | "search" | "people" | "stats" | "settings";
 
 interface Props {
   activeTab: Tab;
@@ -25,6 +25,12 @@ export function Layout({ activeTab, onTabChange, children }: Props) {
             onClick={() => onTabChange("search")}
           >
             Search
+          </button>
+          <button
+            className={activeTab === "people" ? "active" : ""}
+            onClick={() => onTabChange("people")}
+          >
+            People
           </button>
           <button
             className={activeTab === "stats" ? "active" : ""}

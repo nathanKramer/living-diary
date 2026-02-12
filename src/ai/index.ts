@@ -5,6 +5,7 @@ import { z } from "zod";
 import { config } from "../config.js";
 import { buildSystemPrompt } from "./system-prompt.js";
 import type { MemoryStore } from "../memory/index.js";
+import type { PeopleGraphHolder } from "../people/index.js";
 
 function formatMemory(m: { content: string; timestamp: number; type: string; photoFileId?: string }): string {
   const date = new Date(m.timestamp).toISOString().split("T")[0];
@@ -26,6 +27,7 @@ export async function generateDiaryResponse(
   memory: MemoryStore,
   userId: number,
   persona?: string,
+  peopleHolder?: PeopleGraphHolder,
   sendPhoto?: (fileId: string, caption?: string) => Promise<void>,
 ): Promise<string> {
   const messages = buildMessages(recentMessages);
@@ -51,6 +53,12 @@ export async function generateDiaryResponse(
       "### Recent memories\n" +
         recentMemories.map(formatMemory).join("\n"),
     );
+  }
+
+  // Inject people graph context
+  const peopleContext = peopleHolder?.formatPeopleContext();
+  if (peopleContext) {
+    contextParts.push("### People you know\n" + peopleContext);
   }
 
   const memoryContext =
@@ -126,6 +134,28 @@ export async function generateDiaryResponse(
           if (!sendPhoto) return "Photo sending is not available in this context.";
           await sendPhoto(photoFileId, caption);
           return "Photo sent to the user.";
+        },
+      }),
+      get_person_info: tool({
+        description:
+          "Get detailed information about a person the user knows, including their bio, relationships, and related memories. Use this when the user asks about a specific person (e.g. 'tell me about Lizzy', 'who is Simon?').",
+        inputSchema: z.object({
+          name: z.string().describe("The name of the person to look up"),
+        }),
+        execute: async ({ name }) => {
+          if (!peopleHolder) return "People graph is not available.";
+          const person = peopleHolder.findPersonByName(name);
+          if (!person) return `No known person named "${name}".`;
+
+          const detail = peopleHolder.formatPersonDetail(person.id) ?? "";
+
+          // Also search for related memories from LanceDB
+          const relatedMemories = await memory.searchMemories(name, 5);
+          const memoryLines = relatedMemories.length > 0
+            ? "\n\nRelated memories:\n" + relatedMemories.map(formatMemory).join("\n")
+            : "";
+
+          return detail + memoryLines;
         },
       }),
     },
