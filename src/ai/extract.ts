@@ -43,6 +43,7 @@ You will be given existing memories as context. Use them to:
 - Do NOT extract things the AI said — only facts about or experiences of the user
 - Do NOT extract information the AI recalled from memory — if the Diary is repeating back stored memories, that is not new information
 - If the user is asking a question or querying past memories (e.g. "what happened on Monday?"), there is likely nothing new to extract
+- NEVER extract sensitive information: passwords, API keys, secrets, tokens, credit card numbers, PINs, or other credentials. If the user shares these, ignore them completely.
 - If there is nothing worth extracting, return {"memories": []}
 - Keep each memory concise — one clear idea per entry
 - Tags should be short topic labels: "work", "health", "relationships", "hobbies", "goals", "family", etc.
