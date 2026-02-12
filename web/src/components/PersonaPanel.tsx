@@ -1,0 +1,163 @@
+import { useState, useEffect } from "react";
+import { api } from "../api";
+import type { Persona } from "../api";
+
+export function PersonaPanel() {
+  const [persona, setPersona] = useState<Persona | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [description, setDescription] = useState("");
+  const [editedPrompt, setEditedPrompt] = useState("");
+  const [error, setError] = useState("");
+
+  const hasEdits = persona !== null && editedPrompt !== persona.systemPromptAddition;
+
+  useEffect(() => {
+    api.getPersona()
+      .then(({ persona }) => {
+        setPersona(persona);
+        setEditedPrompt(persona?.systemPromptAddition ?? "");
+      })
+      .catch((err) => console.error("Failed to load persona:", err))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleGenerate = async () => {
+    if (!description.trim()) return;
+    setGenerating(true);
+    setError("");
+    try {
+      const { persona } = await api.updatePersona(description.trim());
+      setPersona(persona);
+      setEditedPrompt(persona.systemPromptAddition);
+      setDescription("");
+    } catch (err) {
+      console.error("Failed to generate persona:", err);
+      setError("Failed to generate persona. Try again.");
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!editedPrompt.trim()) return;
+    setSaving(true);
+    setError("");
+    try {
+      const { persona: updated } = await api.savePersona(
+        editedPrompt.trim(),
+        persona?.description,
+      );
+      setPersona(updated);
+      setEditedPrompt(updated.systemPromptAddition);
+    } catch (err) {
+      console.error("Failed to save persona:", err);
+      setError("Failed to save persona.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleReset = async () => {
+    setError("");
+    try {
+      await api.resetPersona();
+      setPersona(null);
+      setEditedPrompt("");
+    } catch (err) {
+      console.error("Failed to reset persona:", err);
+      setError("Failed to reset persona.");
+    }
+  };
+
+  if (loading) {
+    return <p className="empty-state">Loading settings...</p>;
+  }
+
+  return (
+    <div className="persona-panel">
+      <div className="persona-section">
+        <h2>Persona</h2>
+        <p className="persona-hint">
+          Describe how you want the bot to behave and it will generate a custom persona.
+        </p>
+
+        <div className="persona-input-group">
+          <textarea
+            className="persona-input"
+            placeholder='e.g. "A family diary shared between me, my wife, and our kids"'
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            rows={3}
+            disabled={generating}
+          />
+          <button
+            className="persona-generate-btn"
+            onClick={handleGenerate}
+            disabled={generating || !description.trim()}
+          >
+            {generating ? "Generating..." : "Generate persona"}
+          </button>
+        </div>
+
+        {error && <p className="error">{error}</p>}
+      </div>
+
+      <div className="persona-section">
+        <h3>Current persona</h3>
+        {persona ? (
+          <div className="persona-current">
+            <div className="persona-description">
+              <span className="persona-label">Description</span>
+              <p>{persona.description}</p>
+            </div>
+            <div className="persona-prompt">
+              <span className="persona-label">Prompt</span>
+              <textarea
+                className="persona-prompt-edit"
+                value={editedPrompt}
+                onChange={(e) => setEditedPrompt(e.target.value)}
+                rows={12}
+                disabled={saving}
+              />
+            </div>
+            <div className="persona-actions">
+              {hasEdits && (
+                <button
+                  className="persona-save-btn"
+                  onClick={handleSave}
+                  disabled={saving || !editedPrompt.trim()}
+                >
+                  {saving ? "Saving..." : "Save changes"}
+                </button>
+              )}
+              {hasEdits && (
+                <button
+                  className="persona-discard-btn"
+                  onClick={() => setEditedPrompt(persona.systemPromptAddition)}
+                >
+                  Discard
+                </button>
+              )}
+              <button className="persona-reset-btn" onClick={handleReset}>
+                Reset to default
+              </button>
+            </div>
+            <div className="persona-meta">
+              Updated {new Date(persona.updatedAt).toLocaleDateString("en-US", {
+                year: "numeric",
+                month: "short",
+                day: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </div>
+          </div>
+        ) : (
+          <p className="persona-default">Using default persona (personal diary companion)</p>
+        )}
+      </div>
+    </div>
+  );
+}

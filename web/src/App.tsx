@@ -6,6 +6,7 @@ import { Layout, type Tab } from "./components/Layout";
 import { MemoryList } from "./components/MemoryList";
 import { SearchBar } from "./components/SearchBar";
 import { StatsPanel } from "./components/StatsPanel";
+import { PersonaPanel } from "./components/PersonaPanel";
 
 const PAGE_SIZE = 50;
 
@@ -84,6 +85,7 @@ export function App() {
           </>
         )}
         {tab === "stats" && <StatsPanel />}
+        {tab === "settings" && <PersonaPanel />}
       </Layout>
     </AuthGate>
   );

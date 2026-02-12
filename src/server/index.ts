@@ -5,14 +5,18 @@ import { existsSync } from "node:fs";
 import { config } from "../config.js";
 import { authMiddleware } from "./middleware/auth.js";
 import { memoriesRouter } from "./routes/memories.js";
+import { personaRouter } from "./routes/persona.js";
 import type { MemoryStore } from "../memory/index.js";
+import type { PersonaHolder } from "../persona/index.js";
 
-export function startServer(memory: MemoryStore): void {
+export function startServer(memory: MemoryStore, personaHolder: PersonaHolder): void {
   const app = express();
 
   // API routes (auth-protected)
   app.use("/api", authMiddleware);
+  app.use("/api", express.json());
   app.use("/api/memories", memoriesRouter(memory));
+  app.use("/api/persona", personaRouter(personaHolder));
 
   // Serve built React app in production
   const __dirname = dirname(fileURLToPath(import.meta.url));

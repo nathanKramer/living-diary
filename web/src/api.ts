@@ -31,6 +31,12 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+export interface Persona {
+  description: string;
+  systemPromptAddition: string;
+  updatedAt: number;
+}
+
 export interface Stats {
   count: number;
   byType: Record<string, number>;
@@ -57,4 +63,24 @@ export const api = {
 
   deleteMemory: (id: string) =>
     apiFetch<{ ok: boolean }>(`/api/memories/${id}`, { method: "DELETE" }),
+
+  getPersona: () =>
+    apiFetch<{ persona: Persona | null }>("/api/persona"),
+
+  updatePersona: (description: string) =>
+    apiFetch<{ persona: Persona }>("/api/persona", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ description }),
+    }),
+
+  savePersona: (systemPromptAddition: string, description?: string) =>
+    apiFetch<{ persona: Persona }>("/api/persona", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ systemPromptAddition, description }),
+    }),
+
+  resetPersona: () =>
+    apiFetch<{ ok: boolean }>("/api/persona", { method: "DELETE" }),
 };

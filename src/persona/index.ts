@@ -25,3 +25,19 @@ export async function savePersona(persona: Persona): Promise<void> {
   await mkdir(config.dataDir, { recursive: true });
   await writeFile(personaPath(), JSON.stringify(persona, null, 2), "utf-8");
 }
+
+export async function deletePersona(): Promise<void> {
+  const { unlink } = await import("node:fs/promises");
+  try {
+    await unlink(personaPath());
+  } catch {
+    // File doesn't exist, that's fine
+  }
+}
+
+export class PersonaHolder {
+  current: Persona | null;
+  constructor(initial: Persona | null) {
+    this.current = initial;
+  }
+}

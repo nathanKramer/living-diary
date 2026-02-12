@@ -1,7 +1,7 @@
 import { config } from "./config.js";
 import { createBot } from "./bot/index.js";
 import { MemoryStore } from "./memory/index.js";
-import { loadPersona } from "./persona/index.js";
+import { loadPersona, PersonaHolder } from "./persona/index.js";
 import { startServer } from "./server/index.js";
 
 async function main() {
@@ -13,17 +13,18 @@ async function main() {
   const memory = new MemoryStore();
   await memory.init();
 
-  // Start web dashboard
-  startServer(memory);
-
   const persona = await loadPersona();
+  const personaHolder = new PersonaHolder(persona);
   if (persona) {
     console.log(`Persona loaded: "${persona.description}"`);
   } else {
     console.log("No persona configured, using default. Use /configure to set one.");
   }
 
-  const bot = createBot(memory, persona);
+  // Start web dashboard
+  startServer(memory, personaHolder);
+
+  const bot = createBot(memory, personaHolder);
 
   // Graceful shutdown
   const shutdown = () => {

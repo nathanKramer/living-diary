@@ -5,7 +5,7 @@ import type { MemoryStore } from "../memory/index.js";
 import { extractAndStoreMemories } from "../ai/extract.js";
 import { generatePersona } from "../ai/configure.js";
 import { describePhoto } from "../ai/describe-photo.js";
-import { loadPersona, savePersona } from "../persona/index.js";
+import { savePersona, PersonaHolder } from "../persona/index.js";
 import type { Persona } from "../persona/index.js";
 
 const pendingDeletes = new Map<number, string[]>();
@@ -42,9 +42,8 @@ function initialSessionData(): SessionData {
 
 export type BotContext = Context & { session: SessionData };
 
-export function createBot(memory: MemoryStore, initialPersona: Persona | null): Bot<BotContext> {
+export function createBot(memory: MemoryStore, personaHolder: PersonaHolder): Bot<BotContext> {
   const bot = new Bot<BotContext>(config.telegramBotToken);
-  let currentPersona = initialPersona;
 
   // Session middleware for short-term memory
   bot.use(session({ initial: initialSessionData }));
@@ -108,7 +107,7 @@ export function createBot(memory: MemoryStore, initialPersona: Persona | null): 
         updatedAt: Date.now(),
       };
       await savePersona(persona);
-      currentPersona = persona;
+      personaHolder.current = persona;
 
       await ctx.reply(
         `Got it! I've updated my persona based on: "${description}"\n\n` +
@@ -123,7 +122,7 @@ export function createBot(memory: MemoryStore, initialPersona: Persona | null): 
   });
 
   bot.command("persona", async (ctx) => {
-    if (!currentPersona) {
+    if (!personaHolder.current) {
       await ctx.reply(
         "I'm using the default persona (personal diary companion).\n\n" +
           "Use /configure <description> to customize how I behave.",
@@ -132,8 +131,8 @@ export function createBot(memory: MemoryStore, initialPersona: Persona | null): 
     }
 
     await ctx.reply(
-      `Current configuration: "${currentPersona.description}"\n\n` +
-        currentPersona.systemPromptAddition,
+      `Current configuration: "${personaHolder.current.description}"\n\n` +
+        personaHolder.current.systemPromptAddition,
     );
   });
 
@@ -386,7 +385,7 @@ export function createBot(memory: MemoryStore, initialPersona: Persona | null): 
         ctx.session.recentMessages,
         memory,
         userId,
-        currentPersona?.systemPromptAddition,
+        personaHolder.current?.systemPromptAddition,
         async (fileId, caption) => {
           await ctx.replyWithPhoto(fileId, caption ? { caption } : undefined);
         },
