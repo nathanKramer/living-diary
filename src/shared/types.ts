@@ -13,6 +13,8 @@ export interface Memory {
   tags: string;
   timestamp: number;
   photoFileId?: string;
+  source?: string;
+  subjectName?: string;
 }
 
 export interface MemoryWithDistance extends Memory {

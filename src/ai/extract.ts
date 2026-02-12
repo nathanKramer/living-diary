@@ -9,17 +9,22 @@ Return a JSON object with this exact shape:
 {
   "memories": [
     {
-      "content": "string — the memory to store, written in third person about the user",
+      "content": "string — the memory to store, written in third person",
       "type": "diary_entry | user_fact",
-      "tags": ["string"]
+      "tags": ["string"],
+      "subject": "string — who this fact is about (see below)"
     }
   ]
 }
 
 ## Memory types
 
-- **user_fact**: A discrete, reusable fact about the user. Things like their name, job, relationships, preferences, habits, routines, goals. Write these as standalone statements.
-  Examples: "Works as a software engineer at Acme Corp", "Has a dog named Max", "Prefers tea over coffee"
+- **user_fact**: A discrete, reusable fact about a person. This can be about the user themselves OR about someone the user mentions (friends, family, colleagues, etc.). Set "subject" to the person's name.
+  Examples:
+    - subject: "Nathan" → "Nathan works as a software engineer at Acme Corp"
+    - subject: "Nathan" → "Nathan prefers tea over coffee"
+    - subject: "Simon" → "Simon is an artist who sells paintings"
+    - subject: "Lizzy" → "Lizzy is Nathan's sister"
 
 - **diary_entry**: A significant event, experience, emotion, or reflection from the conversation. These are episodic — tied to a moment in time.
   Examples: "Had a stressful day at work — a production outage lasted 3 hours", "Feeling excited about starting a new side project"
@@ -49,6 +54,7 @@ interface ExtractionResult {
     content: string;
     type: MemoryType;
     tags: string[];
+    subject?: string;
   }>;
 }
 
@@ -83,6 +89,7 @@ export async function extractAndStoreMemories(
   recentMessages: Array<{ role: "user" | "assistant"; content: string }>,
   memory: MemoryStore,
   userId: number,
+  userName?: string,
 ): Promise<void> {
   // Only extract if there's enough conversation to work with
   if (recentMessages.length < 2) return;
@@ -113,13 +120,17 @@ export async function extractAndStoreMemories(
   }
 
   const contextBlock = contextMemories.length > 0
-    ? `\n\nExisting memories:\n${contextMemories.join("\n")}\n\nNew message from user:`
+    ? `\n\nExisting memories:\n${contextMemories.join("\n")}`
+    : "";
+
+  const userNameBlock = userName
+    ? `\n\nThe user's display name (from their profile) is "${userName}". Use this for the "subject" field when extracting facts about the user. This is NOT a stored memory — if the user explicitly shares their name, still extract it as a user_fact.`
     : "";
 
   const { text } = await generateText({
     model: anthropic(config.aiModel),
     system: EXTRACTION_PROMPT,
-    prompt: `${contextBlock}\n${conversationText}`,
+    prompt: `${contextBlock}${userNameBlock}\n\nNew message from user:\n${conversationText}`,
   });
 
   const result = parseExtraction(text);
@@ -128,9 +139,12 @@ export async function extractAndStoreMemories(
 
   // Store each extracted memory (addMemory handles dedup via vector similarity)
   for (const mem of result.memories) {
-    const id = await memory.addMemory(mem.content, mem.type, userId, mem.tags);
+    const id = await memory.addMemory(mem.content, mem.type, userId, mem.tags, {
+      source: conversationText,
+      subjectName: mem.subject || undefined,
+    });
     if (id) {
-      console.log(`Stored ${mem.type}: "${mem.content}" (${id})`);
+      console.log(`Stored ${mem.type}${mem.subject ? ` [${mem.subject}]` : ""}: "${mem.content}" (${id})`);
     }
   }
 }

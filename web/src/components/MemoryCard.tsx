@@ -30,6 +30,7 @@ interface Props {
 
 export function MemoryCard({ memory, onDelete }: Props) {
   const [confirming, setConfirming] = useState(false);
+  const [showSource, setShowSource] = useState(false);
   const tags = memory.tags ? memory.tags.split(",").filter(Boolean) : [];
 
   return (
@@ -64,6 +65,9 @@ export function MemoryCard({ memory, onDelete }: Props) {
           )}
         </div>
       </div>
+      {memory.subjectName && (
+        <span className="memory-subject">{memory.subjectName}</span>
+      )}
       <p className="memory-content">{memory.content}</p>
       {tags.length > 0 && (
         <div className="memory-tags">
@@ -71,6 +75,14 @@ export function MemoryCard({ memory, onDelete }: Props) {
             <span key={tag} className="tag">{tag}</span>
           ))}
         </div>
+      )}
+      {memory.source && (
+        <button className="source-toggle" onClick={() => setShowSource(!showSource)}>
+          {showSource ? "Hide original" : "Show original"}
+        </button>
+      )}
+      {showSource && memory.source && (
+        <p className="memory-source">{memory.source}</p>
       )}
       {memory.photoFileId && (
         <span className="photo-indicator">has photo</span>

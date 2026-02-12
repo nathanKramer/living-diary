@@ -5,3 +5,4 @@ data/
 *.tsbuildinfo
 web/node_modules/
 web/dist/
+.claude/settings.local.json

@@ -24,6 +24,8 @@ const tableSchema = new arrow.Schema([
   new arrow.Field("tags", new arrow.Utf8(), false),
   new arrow.Field("timestamp", new arrow.Float64(), false),
   new arrow.Field("photoFileId", new arrow.Utf8(), true),
+  new arrow.Field("source", new arrow.Utf8(), true),
+  new arrow.Field("subjectName", new arrow.Utf8(), true),
   new arrow.Field(
     "vector",
     new arrow.FixedSizeList(
@@ -55,8 +57,10 @@ export class MemoryStore {
       const schema = await existing.schema();
       const hasUserId = schema.fields.some((f) => f.name === "userId");
       const hasPhotoFileId = schema.fields.some((f) => f.name === "photoFileId");
+      const hasSource = schema.fields.some((f) => f.name === "source");
+      const hasSubjectName = schema.fields.some((f) => f.name === "subjectName");
 
-      if (!hasUserId || !hasPhotoFileId) {
+      if (!hasUserId || !hasPhotoFileId || !hasSource || !hasSubjectName) {
         console.log("Schema outdated, recreating table...");
         await this.db.dropTable(TABLE_NAME);
         this.table = await this.db.createEmptyTable(TABLE_NAME, tableSchema);
@@ -77,7 +81,7 @@ export class MemoryStore {
     type: MemoryType,
     userId: number,
     tags: string[] = [],
-    photoFileId?: string,
+    options?: { photoFileId?: string; source?: string; subjectName?: string },
   ): Promise<string | null> {
     if (!this.table) throw new Error("Memory store not initialized");
 
@@ -120,7 +124,9 @@ export class MemoryStore {
         type,
         tags: tags.join(","),
         timestamp: Date.now(),
-        photoFileId: photoFileId ?? null,
+        photoFileId: options?.photoFileId ?? null,
+        source: options?.source ?? null,
+        subjectName: options?.subjectName ?? null,
         vector,
       },
     ]);
@@ -164,6 +170,8 @@ export class MemoryStore {
       tags: row.tags as string,
       timestamp: row.timestamp as number,
       photoFileId: (row.photoFileId as string) || undefined,
+      source: (row.source as string) || undefined,
+      subjectName: (row.subjectName as string) || undefined,
       _distance: row._distance as number,
     }));
   }
@@ -176,7 +184,7 @@ export class MemoryStore {
 
     const results = await this.table
       .query()
-      .select(["id", "userId", "content", "type", "tags", "timestamp", "photoFileId"])
+      .select(["id", "userId", "content", "type", "tags", "timestamp", "photoFileId", "source", "subjectName"])
       .limit(limit)
       .toArray();
 
@@ -193,6 +201,8 @@ export class MemoryStore {
       tags: row.tags as string,
       timestamp: row.timestamp as number,
       photoFileId: (row.photoFileId as string) || undefined,
+      source: (row.source as string) || undefined,
+      subjectName: (row.subjectName as string) || undefined,
     }));
   }
 
@@ -208,7 +218,7 @@ export class MemoryStore {
 
     const results = await this.table
       .query()
-      .select(["id", "userId", "content", "type", "tags", "timestamp", "photoFileId"])
+      .select(["id", "userId", "content", "type", "tags", "timestamp", "photoFileId", "source", "subjectName"])
       .where(`timestamp >= ${startMs} AND timestamp < ${endMs}`)
       .limit(limit)
       .toArray();
@@ -225,6 +235,8 @@ export class MemoryStore {
       tags: row.tags as string,
       timestamp: row.timestamp as number,
       photoFileId: (row.photoFileId as string) || undefined,
+      source: (row.source as string) || undefined,
+      subjectName: (row.subjectName as string) || undefined,
     }));
   }
 
@@ -236,7 +248,7 @@ export class MemoryStore {
 
     const results = await this.table
       .query()
-      .select(["id", "userId", "content", "type", "tags", "timestamp", "photoFileId"])
+      .select(["id", "userId", "content", "type", "tags", "timestamp", "photoFileId", "source", "subjectName"])
       .where(`type = 'user_fact' AND userId = ${userId}`)
       .toArray();
 
@@ -248,6 +260,8 @@ export class MemoryStore {
       tags: row.tags as string,
       timestamp: row.timestamp as number,
       photoFileId: (row.photoFileId as string) || undefined,
+      source: (row.source as string) || undefined,
+      subjectName: (row.subjectName as string) || undefined,
     }));
   }
 
@@ -271,7 +285,7 @@ export class MemoryStore {
 
     const results = await this.table
       .query()
-      .select(["id", "userId", "content", "type", "tags", "timestamp", "photoFileId"])
+      .select(["id", "userId", "content", "type", "tags", "timestamp", "photoFileId", "source", "subjectName"])
       .toArray();
 
     return results.map((row) => ({
@@ -282,6 +296,8 @@ export class MemoryStore {
       tags: row.tags as string,
       timestamp: row.timestamp as number,
       photoFileId: (row.photoFileId as string) || undefined,
+      source: (row.source as string) || undefined,
+      subjectName: (row.subjectName as string) || undefined,
     }));
   }
 }

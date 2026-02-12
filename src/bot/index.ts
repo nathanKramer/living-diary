@@ -331,7 +331,7 @@ export function createBot(memory: MemoryStore, initialPersona: Persona | null): 
         "photo_memory",
         userId,
         ["photo"],
-        photo.file_id,
+        { photoFileId: photo.file_id, source: caption ?? undefined },
       );
 
       if (memId) {
@@ -402,6 +402,7 @@ export function createBot(memory: MemoryStore, initialPersona: Persona | null): 
         ctx.session.recentMessages,
         memory,
         userId,
+        ctx.from.first_name,
       ).catch((err) => console.error("Memory extraction failed:", err));
     } catch (err) {
       console.error("AI generation failed:", err);
