@@ -1,4 +1,4 @@
-import { Bot, Context, InputFile, session } from "grammy";
+import { Bot, Context, InputFile, InlineKeyboard, session } from "grammy";
 import { config } from "../config.js";
 import { generateDiaryResponse } from "../ai/index.js";
 import type { MemoryStore } from "../memory/index.js";
@@ -8,6 +8,7 @@ import { describePhoto } from "../ai/describe-photo.js";
 import { savePersona, PersonaHolder } from "../persona/index.js";
 import type { Persona } from "../persona/index.js";
 import type { PeopleGraphHolder } from "../people/index.js";
+import type { AllowlistHolder } from "../allowlist/index.js";
 
 const pendingDeletes = new Map<number, string[]>();
 
@@ -43,19 +44,90 @@ function initialSessionData(): SessionData {
 
 export type BotContext = Context & { session: SessionData };
 
-export function createBot(memory: MemoryStore, personaHolder: PersonaHolder, peopleHolder: PeopleGraphHolder): Bot<BotContext> {
+export function createBot(memory: MemoryStore, personaHolder: PersonaHolder, peopleHolder: PeopleGraphHolder, allowlist: AllowlistHolder): Bot<BotContext> {
   const bot = new Bot<BotContext>(config.telegramBotToken);
+
+  // --- Approval callback queries (registered before auth middleware) ---
+
+  bot.callbackQuery(/^approve:(\d+)$/, async (ctx) => {
+    if (ctx.from.id !== config.adminTelegramId) {
+      await ctx.answerCallbackQuery({ text: "Only the admin can do this." });
+      return;
+    }
+
+    const userId = Number(ctx.match[1]);
+    await allowlist.approve(userId);
+
+    try {
+      await ctx.api.sendMessage(userId, "✅ You've been approved! You can start using the bot.");
+    } catch (err) {
+      console.error(`Failed to notify approved user ${userId}:`, err);
+    }
+
+    const original = ctx.callbackQuery.message?.text ?? "";
+    await ctx.editMessageText(`${original}\n\n✅ Approved`);
+    await ctx.answerCallbackQuery({ text: "User approved" });
+  });
+
+  bot.callbackQuery(/^reject:(\d+)$/, async (ctx) => {
+    if (ctx.from.id !== config.adminTelegramId) {
+      await ctx.answerCallbackQuery({ text: "Only the admin can do this." });
+      return;
+    }
+
+    const userId = Number(ctx.match[1]);
+    await allowlist.reject(userId);
+
+    try {
+      await ctx.api.sendMessage(userId, "Sorry, your request wasn't approved.");
+    } catch (err) {
+      console.error(`Failed to notify rejected user ${userId}:`, err);
+    }
+
+    const original = ctx.callbackQuery.message?.text ?? "";
+    await ctx.editMessageText(`${original}\n\n❌ Rejected`);
+    await ctx.answerCallbackQuery({ text: "User rejected" });
+  });
 
   // Session middleware for short-term memory
   bot.use(session({ initial: initialSessionData }));
 
-  // Only respond to allowed users
+  // Allowlist gate — approved users pass through, others get a pending request
   bot.use(async (ctx, next) => {
-    if (!ctx.from || !config.allowedUserIds.includes(ctx.from.id)) {
-      console.log(`Ignored message from unauthorized user: ${ctx.from?.id}`);
+    if (!ctx.from) return;
+
+    const userId = ctx.from.id;
+
+    if (allowlist.isApproved(userId)) {
+      await next();
       return;
     }
-    await next();
+
+    if (allowlist.isPending(userId)) {
+      // Already requested — don't re-notify admin
+      return;
+    }
+
+    // New unapproved user — store request and notify admin
+    allowlist.addPendingRequest({
+      userId,
+      firstName: ctx.from.first_name,
+      lastName: ctx.from.last_name,
+      username: ctx.from.username,
+    });
+    await allowlist.save();
+
+    await ctx.reply("👋 Welcome! Your access request has been sent to the admin. You'll be notified when approved.");
+
+    const nameParts = [ctx.from.first_name, ctx.from.last_name].filter(Boolean).join(" ");
+    const usernamePart = ctx.from.username ? ` (@${ctx.from.username})` : "";
+    const text = `🔔 New access request:\n\nName: ${nameParts}${usernamePart}\nUser ID: ${userId}`;
+
+    const keyboard = new InlineKeyboard()
+      .text("✅ Approve", `approve:${userId}`)
+      .text("❌ Reject", `reject:${userId}`);
+
+    await ctx.api.sendMessage(config.adminTelegramId, text, { reply_markup: keyboard });
   });
 
   // Commands

@@ -27,7 +27,8 @@ Fill in your `.env`:
 | `TELEGRAM_BOT_TOKEN` | Yes | From [@BotFather](https://t.me/BotFather) |
 | `ANTHROPIC_API_KEY` | Yes | Claude API key |
 | `OPENAI_API_KEY` | Yes | For embeddings (text-embedding-3-small) |
-| `ALLOWED_USER_IDS` | Yes | Comma-separated Telegram user IDs |
+| `ADMIN_TELEGRAM_ID` | Yes | Your Telegram user ID (receives approval requests) |
+| `ALLOWED_USER_IDS` | No | Comma-separated seed IDs (merged into allowlist on startup) |
 | `AI_MODEL` | No | Defaults to `claude-sonnet-4-5-20250929` |
 | `DASHBOARD_TOKEN` | No | Protects the web dashboard |
 
@@ -70,3 +71,4 @@ All data lives in `data/` (git-ignored):
 - **LanceDB** -- vector-indexed memories (diary entries, user facts, photos)
 - **people.json** -- structured people and relationships graph
 - **persona.json** -- custom bot persona configuration
+- **allowlist.json** -- approved user IDs and pending approval requests

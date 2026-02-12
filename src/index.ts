@@ -3,13 +3,14 @@ import { createBot } from "./bot/index.js";
 import { MemoryStore } from "./memory/index.js";
 import { loadPersona, PersonaHolder } from "./persona/index.js";
 import { loadPeopleGraph, PeopleGraphHolder } from "./people/index.js";
+import { loadAllowlist, AllowlistHolder } from "./allowlist/index.js";
 import { startServer } from "./server/index.js";
 
 async function main() {
   console.log("Living Diary starting...");
   console.log(`Model: ${config.aiModel}`);
   console.log(`Data dir: ${config.dataDir}`);
-  console.log(`Allowed users: ${config.allowedUserIds.join(", ")}`);
+  console.log(`Admin: ${config.adminTelegramId}`);
 
   const memory = new MemoryStore();
   await memory.init();
@@ -26,10 +27,19 @@ async function main() {
   const peopleHolder = new PeopleGraphHolder(peopleGraph);
   console.log(`People graph loaded: ${peopleGraph.people.length} people, ${peopleGraph.relationships.length} relationships`);
 
+  // Load allowlist and seed from env
+  const allowlistData = await loadAllowlist();
+  const allowlistHolder = new AllowlistHolder(allowlistData);
+  if (config.allowedUserIds.length > 0) {
+    allowlistHolder.seedFromEnv(config.allowedUserIds);
+    await allowlistHolder.save();
+  }
+  console.log(`Allowlist: ${allowlistHolder.current.approvedUserIds.length} approved, ${allowlistHolder.current.pendingRequests.length} pending`);
+
   // Start web dashboard
   startServer(memory, personaHolder, peopleHolder);
 
-  const bot = createBot(memory, personaHolder, peopleHolder);
+  const bot = createBot(memory, personaHolder, peopleHolder, allowlistHolder);
 
   // Graceful shutdown
   const shutdown = () => {
