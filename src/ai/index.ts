@@ -64,9 +64,11 @@ export async function generateDiaryResponse(
   const memoryContext =
     contextParts.length > 0 ? contextParts.join("\n\n") : undefined;
 
+  const systemPrompt = buildSystemPrompt(persona, memoryContext);
+  
   const { text } = await generateText({
     model: anthropic(config.aiModel),
-    system: buildSystemPrompt(persona, memoryContext),
+    system: systemPrompt,
     messages,
     tools: {
       search_memories: tool({
@@ -149,8 +151,9 @@ export async function generateDiaryResponse(
 
           const detail = peopleHolder.formatPersonDetail(person.id) ?? "";
 
-          // Also search for related memories from LanceDB
-          const relatedMemories = await memory.searchMemories(name, 5);
+          // Fetch related memories by subjectName match
+          const names = [person.name, ...person.aliases];
+          const relatedMemories = await memory.getMemoriesBySubject(names);
           const memoryLines = relatedMemories.length > 0
             ? "\n\nRelated memories:\n" + relatedMemories.map(formatMemory).join("\n")
             : "";
