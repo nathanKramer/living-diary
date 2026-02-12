@@ -20,7 +20,7 @@ Return a JSON object with this exact shape:
   "people_updates": [
     {
       "name": "string — the person's primary name",
-      "aliases": ["string — nicknames or alternate names, e.g. 'Mom'"],
+      "aliases": ["string — nicknames or alternate names, e.g. 'Mum'"],
       "bio_snippet": "string — a short factual description to add to their bio",
       "relationships": [
         {
@@ -35,8 +35,12 @@ Return a JSON object with this exact shape:
 
 ## Memory types
 
-- **user_fact**: A discrete, reusable fact about a person. This can be about the user themselves OR about someone the user mentions (friends, family, colleagues, etc.). Set "subject" to the person's name.
-  Examples:
+- **user_fact**: A discrete, reusable fact about a SINGLE person. This can be about the user themselves OR about someone the user mentions (friends, family, colleagues, etc.). Set "subject" to the person's name.
+  IMPORTANT: Each user_fact must be about exactly ONE person. If a fact applies to multiple people, create a SEPARATE user_fact for each person. For example, if "Simon, Bridget, and Lizzy live in Christchurch", create three separate facts:
+    - subject: "Simon" → "Simon lives in Christchurch, New Zealand"
+    - subject: "Bridget" → "Bridget lives in Christchurch, New Zealand"
+    - subject: "Lizzy" → "Lizzy lives in Christchurch, New Zealand"
+  More examples:
     - subject: "Nathan" → "Nathan works as a software engineer at Acme Corp"
     - subject: "Nathan" → "Nathan prefers tea over coffee"
     - subject: "Simon" → "Simon is an artist who sells paintings"

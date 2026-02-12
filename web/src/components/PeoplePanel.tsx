@@ -4,7 +4,14 @@ import type { Person, Relationship, RelationshipType } from "@shared/types";
 import { PeopleGraph } from "./PeopleGraph";
 
 const RELATIONSHIP_TYPES: RelationshipType[] = [
-  "sibling", "parent", "child", "partner", "friend", "coworker", "pet", "other",
+  "sibling",
+  "parent",
+  "child",
+  "partner",
+  "friend",
+  "coworker",
+  "pet",
+  "other",
 ];
 
 const REL_COLORS: Record<string, string> = {
@@ -26,7 +33,13 @@ interface PersonDetailProps {
   onBack: () => void;
 }
 
-function PersonDetail({ person, people, relationships, onUpdate, onBack }: PersonDetailProps) {
+function PersonDetail({
+  person,
+  people,
+  relationships,
+  onUpdate,
+  onBack,
+}: PersonDetailProps) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(person.name);
   const [aliases, setAliases] = useState(person.aliases.join(", "));
@@ -54,7 +67,10 @@ function PersonDetail({ person, people, relationships, onUpdate, onBack }: Perso
     try {
       await api.updatePerson(person.id, {
         name: name.trim(),
-        aliases: aliases.split(",").map((a) => a.trim()).filter(Boolean),
+        aliases: aliases
+          .split(",")
+          .map((a) => a.trim())
+          .filter(Boolean),
         bio: bio.trim(),
       });
       setEditing(false);
@@ -68,7 +84,12 @@ function PersonDetail({ person, people, relationships, onUpdate, onBack }: Perso
   };
 
   const handleDelete = async () => {
-    if (!confirm(`Delete ${person.name}? This will also remove their relationships.`)) return;
+    if (
+      !confirm(
+        `Delete ${person.name}? This will also remove their relationships.`,
+      )
+    )
+      return;
     try {
       await api.deletePerson(person.id);
       onUpdate();
@@ -83,7 +104,12 @@ function PersonDetail({ person, people, relationships, onUpdate, onBack }: Perso
     if (!relTargetId || !relLabel.trim()) return;
     setError("");
     try {
-      await api.addRelationship(person.id, relTargetId, relType, relLabel.trim());
+      await api.addRelationship(
+        person.id,
+        relTargetId,
+        relType,
+        relLabel.trim(),
+      );
       setShowAddRel(false);
       setRelLabel("");
       onUpdate();
@@ -105,7 +131,12 @@ function PersonDetail({ person, people, relationships, onUpdate, onBack }: Perso
   const handleMerge = async () => {
     if (!mergeTargetId) return;
     const target = people.find((p) => p.id === mergeTargetId);
-    if (!confirm(`Merge "${target?.name}" into "${person.name}"? This cannot be undone.`)) return;
+    if (
+      !confirm(
+        `Merge "${target?.name}" into "${person.name}"? This cannot be undone.`,
+      )
+    )
+      return;
     try {
       await api.mergePeople(person.id, mergeTargetId);
       setShowMerge(false);
@@ -120,7 +151,9 @@ function PersonDetail({ person, people, relationships, onUpdate, onBack }: Perso
 
   return (
     <div className="person-detail">
-      <button className="back-btn" onClick={onBack}>&larr; Back</button>
+      <button className="back-btn" onClick={onBack}>
+        &larr; Back
+      </button>
 
       {editing ? (
         <div className="person-edit">
@@ -130,34 +163,64 @@ function PersonDetail({ person, people, relationships, onUpdate, onBack }: Perso
           </div>
           <div className="edit-field">
             <label>Aliases (comma-separated)</label>
-            <input value={aliases} onChange={(e) => setAliases(e.target.value)} placeholder="Mom, Mother" />
+            <input
+              value={aliases}
+              onChange={(e) => setAliases(e.target.value)}
+              placeholder="Mum, Mother"
+            />
           </div>
           <div className="edit-field">
             <label>Bio</label>
-            <textarea value={bio} onChange={(e) => setBio(e.target.value)} rows={3} />
+            <textarea
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              rows={3}
+            />
           </div>
           <div className="edit-actions">
-            <button className="save-btn" onClick={handleSave} disabled={saving || !name.trim()}>
+            <button
+              className="save-btn"
+              onClick={handleSave}
+              disabled={saving || !name.trim()}
+            >
               {saving ? "Saving..." : "Save"}
             </button>
-            <button className="cancel-btn" onClick={() => setEditing(false)}>Cancel</button>
+            <button className="cancel-btn" onClick={() => setEditing(false)}>
+              Cancel
+            </button>
           </div>
         </div>
       ) : (
         <div className="person-info">
           <h2>{person.name}</h2>
           {person.aliases.length > 0 && (
-            <p className="person-aliases">Also known as: {person.aliases.join(", ")}</p>
+            <p className="person-aliases">
+              Also known as: {person.aliases.join(", ")}
+            </p>
           )}
           {person.bio && <p className="person-bio">{person.bio}</p>}
           <div className="person-meta">
-            Added {new Date(person.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}
+            Added{" "}
+            {new Date(person.createdAt).toLocaleDateString("en-US", {
+              year: "numeric",
+              month: "short",
+              day: "numeric",
+            })}
           </div>
           <div className="person-actions">
-            <button className="edit-btn" onClick={() => setEditing(true)}>Edit</button>
-            <button className="delete-person-btn" onClick={handleDelete}>Delete</button>
+            <button className="edit-btn" onClick={() => setEditing(true)}>
+              Edit
+            </button>
+            <button className="delete-person-btn" onClick={handleDelete}>
+              Delete
+            </button>
             {otherPeople.length > 0 && (
-              <button className="merge-btn" onClick={() => setShowMerge(!showMerge)}>Merge</button>
+              <button
+                className="merge-btn"
+                onClick={() => setShowMerge(!showMerge)}
+              >
+                Merge
+              </button>
             )}
           </div>
         </div>
@@ -167,52 +230,84 @@ function PersonDetail({ person, people, relationships, onUpdate, onBack }: Perso
 
       {showMerge && (
         <div className="merge-section">
-          <p className="merge-hint">Select a person to merge into {person.name}:</p>
+          <p className="merge-hint">
+            Select a person to merge into {person.name}:
+          </p>
           <div className="merge-controls">
-            <select value={mergeTargetId} onChange={(e) => setMergeTargetId(e.target.value)}>
+            <select
+              value={mergeTargetId}
+              onChange={(e) => setMergeTargetId(e.target.value)}
+            >
               <option value="">Select person...</option>
               {otherPeople.map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
               ))}
             </select>
-            <button onClick={handleMerge} disabled={!mergeTargetId}>Merge</button>
+            <button onClick={handleMerge} disabled={!mergeTargetId}>
+              Merge
+            </button>
           </div>
         </div>
       )}
 
       <div className="relationships-section">
         <h3>Relationships</h3>
-        {personRels.length === 0 && <p className="empty-hint">No relationships yet.</p>}
+        {personRels.length === 0 && (
+          <p className="empty-hint">No relationships yet.</p>
+        )}
         {personRels.map((rel) => {
-          const otherId = rel.personId1 === person.id ? rel.personId2 : rel.personId1;
+          const otherId =
+            rel.personId1 === person.id ? rel.personId2 : rel.personId1;
           const other = people.find((p) => p.id === otherId);
           return (
             <div key={rel.id} className="relationship-row">
-              <span className="rel-badge" style={{ backgroundColor: REL_COLORS[rel.type] ?? "#6b7280" }}>
+              <span
+                className="rel-badge"
+                style={{ backgroundColor: REL_COLORS[rel.type] ?? "#6b7280" }}
+              >
                 {rel.type}
               </span>
               <span className="rel-label">{rel.label}</span>
               <span className="rel-other">{other?.name ?? "Unknown"}</span>
-              <button className="rel-delete" onClick={() => handleDeleteRelationship(rel.id)}>&times;</button>
+              <button
+                className="rel-delete"
+                onClick={() => handleDeleteRelationship(rel.id)}
+              >
+                &times;
+              </button>
             </div>
           );
         })}
 
         {!showAddRel && otherPeople.length > 0 && (
-          <button className="add-rel-btn" onClick={() => setShowAddRel(true)}>+ Add relationship</button>
+          <button className="add-rel-btn" onClick={() => setShowAddRel(true)}>
+            + Add relationship
+          </button>
         )}
 
         {showAddRel && (
           <div className="add-rel-form">
-            <select value={relTargetId} onChange={(e) => setRelTargetId(e.target.value)}>
+            <select
+              value={relTargetId}
+              onChange={(e) => setRelTargetId(e.target.value)}
+            >
               <option value="">Select person...</option>
               {otherPeople.map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
               ))}
             </select>
-            <select value={relType} onChange={(e) => setRelType(e.target.value as RelationshipType)}>
+            <select
+              value={relType}
+              onChange={(e) => setRelType(e.target.value as RelationshipType)}
+            >
               {RELATIONSHIP_TYPES.map((t) => (
-                <option key={t} value={t}>{t}</option>
+                <option key={t} value={t}>
+                  {t}
+                </option>
               ))}
             </select>
             <input
@@ -221,8 +316,18 @@ function PersonDetail({ person, people, relationships, onUpdate, onBack }: Perso
               onChange={(e) => setRelLabel(e.target.value)}
             />
             <div className="add-rel-actions">
-              <button onClick={handleAddRelationship} disabled={!relTargetId || !relLabel.trim()}>Add</button>
-              <button className="cancel-btn" onClick={() => setShowAddRel(false)}>Cancel</button>
+              <button
+                onClick={handleAddRelationship}
+                disabled={!relTargetId || !relLabel.trim()}
+              >
+                Add
+              </button>
+              <button
+                className="cancel-btn"
+                onClick={() => setShowAddRel(false)}
+              >
+                Cancel
+              </button>
             </div>
           </div>
         )}
@@ -250,7 +355,9 @@ export function PeoplePanel() {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, []);
 
   const handleUpdate = () => {
     load();
@@ -277,7 +384,8 @@ export function PeoplePanel() {
   if (people.length === 0) {
     return (
       <p className="empty-state">
-        No people recorded yet. As you chat with the bot and mention people, they'll appear here.
+        No people recorded yet. As you chat with the bot and mention people,
+        they'll appear here.
       </p>
     );
   }
@@ -312,11 +420,17 @@ export function PeoplePanel() {
               (r) => r.personId1 === person.id || r.personId2 === person.id,
             );
             return (
-              <div key={person.id} className="person-card" onClick={() => setSelectedId(person.id)}>
+              <div
+                key={person.id}
+                className="person-card"
+                onClick={() => setSelectedId(person.id)}
+              >
                 <div className="person-card-header">
                   <span className="person-name">{person.name}</span>
                   {person.aliases.length > 0 && (
-                    <span className="person-card-aliases">{person.aliases.join(", ")}</span>
+                    <span className="person-card-aliases">
+                      {person.aliases.join(", ")}
+                    </span>
                   )}
                 </div>
                 {person.bio && <p className="person-card-bio">{person.bio}</p>}
@@ -326,7 +440,9 @@ export function PeoplePanel() {
                       <span
                         key={rel.id}
                         className="rel-badge-small"
-                        style={{ backgroundColor: REL_COLORS[rel.type] ?? "#6b7280" }}
+                        style={{
+                          backgroundColor: REL_COLORS[rel.type] ?? "#6b7280",
+                        }}
                       >
                         {rel.label}
                       </span>
