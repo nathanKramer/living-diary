@@ -69,12 +69,15 @@ export class AllowlistHolder {
     if (!this.current.approvedUserIds.includes(userId)) {
       this.current.approvedUserIds.push(userId);
     }
-    this.current.pendingRequests = this.current.pendingRequests.filter((r) => r.userId !== userId);
+
+    const updated = this.current.pendingRequests.filter((r) => r.userId !== userId);
+    this.current.pendingRequests = updated;
     await this.save();
   }
 
   async reject(userId: number): Promise<void> {
-    this.current.pendingRequests = this.current.pendingRequests.filter((r) => r.userId !== userId);
+    const updated = this.current.pendingRequests.filter((r) => r.userId !== userId);
+    this.current.pendingRequests = updated;
     await this.save();
   }
 

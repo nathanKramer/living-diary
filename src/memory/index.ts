@@ -54,19 +54,8 @@ export class MemoryStore {
     const tableNames = await this.db.tableNames();
     if (tableNames.includes(TABLE_NAME)) {
       const existing = await this.db.openTable(TABLE_NAME);
-      const schema = await existing.schema();
-      const hasUserId = schema.fields.some((f) => f.name === "userId");
-      const hasPhotoFileId = schema.fields.some((f) => f.name === "photoFileId");
-      const hasSource = schema.fields.some((f) => f.name === "source");
-      const hasSubjectName = schema.fields.some((f) => f.name === "subjectName");
-
-      if (!hasUserId || !hasPhotoFileId || !hasSource || !hasSubjectName) {
-        console.log("Schema outdated, recreating table...");
-        await this.db.dropTable(TABLE_NAME);
-        this.table = await this.db.createEmptyTable(TABLE_NAME, tableSchema);
-      } else {
-        this.table = existing;
-      }
+      // const schema = await existing.schema();
+      this.table = existing;
     } else {
       this.table = await this.db.createEmptyTable(TABLE_NAME, tableSchema);
     }
@@ -113,6 +102,7 @@ export class MemoryStore {
         return null;
       }
     }
+    // End dedup check
 
     const id = uuidv4();
 
