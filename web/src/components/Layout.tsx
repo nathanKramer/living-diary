@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-export type Tab = "recent" | "search" | "stats" | "settings";
+export type Tab = "all" | "search" | "stats" | "settings";
 
 interface Props {
   activeTab: Tab;
@@ -15,10 +15,10 @@ export function Layout({ activeTab, onTabChange, children }: Props) {
         <h1>Living Diary</h1>
         <nav>
           <button
-            className={activeTab === "recent" ? "active" : ""}
-            onClick={() => onTabChange("recent")}
+            className={activeTab === "all" ? "active" : ""}
+            onClick={() => onTabChange("all")}
           >
-            Recent
+            All
           </button>
           <button
             className={activeTab === "search" ? "active" : ""}

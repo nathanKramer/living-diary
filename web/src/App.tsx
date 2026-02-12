@@ -11,7 +11,7 @@ import { PersonaPanel } from "./components/PersonaPanel";
 const PAGE_SIZE = 50;
 
 export function App() {
-  const [tab, setTab] = useState<Tab>("recent");
+  const [tab, setTab] = useState<Tab>("all");
   const [memories, setMemories] = useState<Memory[]>([]);
   const [loading, setLoading] = useState(false);
   const [limit, setLimit] = useState(PAGE_SIZE);
@@ -67,7 +67,7 @@ export function App() {
   return (
     <AuthGate>
       <Layout activeTab={tab} onTabChange={setTab}>
-        {tab === "recent" && (
+        {tab === "all" && (
           <MemoryList
             memories={memories}
             loading={loading}
