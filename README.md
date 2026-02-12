@@ -1,5 +1,7 @@
 # Living Diary
 
+<img src="assets/living-diary.png" width="200" alt="Living Diary" >
+
 An AI-powered memory companion that lives in Telegram. Talk to it about your day, the people in your life, or anything on your mind -- it remembers what matters and reflects it back naturally over time.
 
 ## What it does
