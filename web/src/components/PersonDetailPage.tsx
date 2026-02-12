@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { api } from "../api";
 import type {
@@ -31,57 +31,33 @@ const REL_COLORS: Record<string, string> = {
   other: "#6b7280",
 };
 
-export function PersonDetailPage() {
-  const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
+// --- Custom hook: fetch person + graph + memories ---
 
+function usePersonData(id: string | undefined) {
   const [person, setPerson] = useState<Person | null>(null);
   const [people, setPeople] = useState<Person[]>([]);
   const [relationships, setRelationships] = useState<Relationship[]>([]);
   const [loading, setLoading] = useState(true);
-
-  const [editing, setEditing] = useState(false);
-  const [name, setName] = useState("");
-  const [aliases, setAliases] = useState("");
-  const [bio, setBio] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-
-  const [showAddRel, setShowAddRel] = useState(false);
-  const [relTargetId, setRelTargetId] = useState("");
-  const [relType, setRelType] = useState<RelationshipType>("friend");
-  const [relLabel, setRelLabel] = useState("");
-
-  const [showMerge, setShowMerge] = useState(false);
-  const [mergeTargetId, setMergeTargetId] = useState("");
-
   const [memories, setMemories] = useState<Memory[]>([]);
   const [memoriesLoading, setMemoriesLoading] = useState(true);
 
-  const load = async () => {
+  const reload = useCallback(async () => {
     try {
       const graph = await api.getPeople();
       setPeople(graph.people);
       setRelationships(graph.relationships);
       const found = graph.people.find((p) => p.id === id);
-      if (found) {
-        setPerson(found);
-        setName(found.name);
-        setAliases(found.aliases.join(", "));
-        setBio(found.bio);
-      } else {
-        setPerson(null);
-      }
+      setPerson(found ?? null);
     } catch (err) {
       console.error("Failed to load people:", err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
   useEffect(() => {
-    load();
-  }, [id]);
+    reload();
+  }, [reload]);
 
   useEffect(() => {
     if (!person) return;
@@ -94,7 +70,7 @@ export function PersonDetailPage() {
       .finally(() => setMemoriesLoading(false));
   }, [person?.name, person?.aliases]);
 
-  const handleDeleteMemory = async (memId: string) => {
+  const deleteMemory = async (memId: string) => {
     try {
       await api.deleteMemory(memId);
       setMemories((prev) => prev.filter((m) => m.id !== memId));
@@ -103,19 +79,40 @@ export function PersonDetailPage() {
     }
   };
 
-  if (loading) {
-    return <p className="empty-state">Loading...</p>;
-  }
+  return {
+    person,
+    people,
+    relationships,
+    loading,
+    memories,
+    memoriesLoading,
+    reload,
+    deleteMemory,
+  };
+}
 
-  if (!person) {
-    return <p className="empty-state">Person not found.</p>;
-  }
+// --- Subcomponents ---
 
-  const personRels = relationships.filter(
-    (r) => r.personId1 === person.id || r.personId2 === person.id,
-  );
+function PersonEditForm({
+  person,
+  onSave,
+}: {
+  person: Person;
+  onSave: () => void;
+}) {
+  const navigate = useNavigate();
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(person.name);
+  const [aliases, setAliases] = useState(person.aliases.join(", "));
+  const [bio, setBio] = useState(person.bio);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
-  const otherPeople = people.filter((p) => p.id !== person.id);
+  useEffect(() => {
+    setName(person.name);
+    setAliases(person.aliases.join(", "));
+    setBio(person.bio);
+  }, [person]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -130,7 +127,7 @@ export function PersonDetailPage() {
         bio: bio.trim(),
       });
       setEditing(false);
-      load();
+      onSave();
     } catch (err) {
       console.error("Failed to update person:", err);
       setError("Failed to save changes.");
@@ -155,60 +152,9 @@ export function PersonDetailPage() {
     }
   };
 
-  const handleAddRelationship = async () => {
-    if (!relTargetId || !relLabel.trim()) return;
-    setError("");
-    try {
-      await api.addRelationship(
-        person.id,
-        relTargetId,
-        relType,
-        relLabel.trim(),
-      );
-      setShowAddRel(false);
-      setRelLabel("");
-      load();
-    } catch (err) {
-      console.error("Failed to add relationship:", err);
-      setError("Failed to add relationship.");
-    }
-  };
-
-  const handleDeleteRelationship = async (relId: string) => {
-    try {
-      await api.deleteRelationship(relId);
-      load();
-    } catch (err) {
-      console.error("Failed to delete relationship:", err);
-    }
-  };
-
-  const handleMerge = async () => {
-    if (!mergeTargetId) return;
-    const target = people.find((p) => p.id === mergeTargetId);
-    if (
-      !confirm(
-        `Merge "${target?.name}" into "${person.name}"? This cannot be undone.`,
-      )
-    )
-      return;
-    try {
-      await api.mergePeople(person.id, mergeTargetId);
-      setShowMerge(false);
-      load();
-    } catch (err) {
-      console.error("Failed to merge:", err);
-      setError("Failed to merge people.");
-    }
-  };
-
-  return (
-    <div className="person-detail">
-      <button className="back-btn" onClick={() => navigate("/people")}>
-        &larr; Back
-      </button>
-
-      {editing ? (
+  if (editing) {
+    return (
+      <>
         <div className="person-edit">
           <div className="edit-field">
             <label>Name</label>
@@ -243,44 +189,84 @@ export function PersonDetailPage() {
             </button>
           </div>
         </div>
-      ) : (
-        <div className="person-info">
-          <h2>{person.name}</h2>
-          {person.aliases.length > 0 && (
-            <p className="person-aliases">
-              Also known as: {person.aliases.join(", ")}
-            </p>
-          )}
-          {person.bio && <p className="person-bio">{person.bio}</p>}
-          <div className="person-meta">
-            Added{" "}
-            {new Date(person.createdAt).toLocaleDateString("en-US", {
-              year: "numeric",
-              month: "short",
-              day: "numeric",
-            })}
-          </div>
-          <div className="person-actions">
-            <button className="edit-btn" onClick={() => setEditing(true)}>
-              Edit
-            </button>
-            <button className="delete-person-btn" onClick={handleDelete}>
-              Delete
-            </button>
-            {otherPeople.length > 0 && (
-              <button
-                className="merge-btn"
-                onClick={() => setShowMerge(!showMerge)}
-              >
-                Merge
-              </button>
-            )}
-          </div>
+        {error && <p className="error">{error}</p>}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <div className="person-info">
+        <h2>{person.name}</h2>
+        {person.aliases.length > 0 && (
+          <p className="person-aliases">
+            Also known as: {person.aliases.join(", ")}
+          </p>
+        )}
+        {person.bio && <p className="person-bio">{person.bio}</p>}
+        <div className="person-meta">
+          Added{" "}
+          {new Date(person.createdAt).toLocaleDateString("en-US", {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+          })}
         </div>
-      )}
-
+        <div className="person-actions">
+          <button className="edit-btn" onClick={() => setEditing(true)}>
+            Edit
+          </button>
+          <button className="delete-person-btn" onClick={handleDelete}>
+            Delete
+          </button>
+        </div>
+      </div>
       {error && <p className="error">{error}</p>}
+    </>
+  );
+}
 
+function MergeSection({
+  person,
+  otherPeople,
+  onMerge,
+}: {
+  person: Person;
+  otherPeople: Person[];
+  onMerge: () => void;
+}) {
+  const [showMerge, setShowMerge] = useState(false);
+  const [mergeTargetId, setMergeTargetId] = useState("");
+  const [error, setError] = useState("");
+
+  if (otherPeople.length === 0) return null;
+
+  const handleMerge = async () => {
+    if (!mergeTargetId) return;
+    const target = otherPeople.find((p) => p.id === mergeTargetId);
+    if (
+      !confirm(
+        `Merge "${target?.name}" into "${person.name}"? This cannot be undone.`,
+      )
+    )
+      return;
+    try {
+      await api.mergePeople(person.id, mergeTargetId);
+      setShowMerge(false);
+      onMerge();
+    } catch (err) {
+      console.error("Failed to merge:", err);
+      setError("Failed to merge people.");
+    }
+  };
+
+  return (
+    <>
+      {!showMerge && (
+        <button className="merge-btn" onClick={() => setShowMerge(true)}>
+          Merge with another person
+        </button>
+      )}
       {showMerge && (
         <div className="merge-section">
           <p className="merge-hint">
@@ -301,105 +287,224 @@ export function PersonDetailPage() {
             <button onClick={handleMerge} disabled={!mergeTargetId}>
               Merge
             </button>
+            <button className="cancel-btn" onClick={() => setShowMerge(false)}>
+              Cancel
+            </button>
           </div>
+          {error && <p className="error">{error}</p>}
         </div>
       )}
+    </>
+  );
+}
 
-      <div className="relationships-section">
-        <h3>Relationships</h3>
-        {personRels.length === 0 && (
-          <p className="empty-hint">No relationships yet.</p>
-        )}
-        {personRels.map((rel) => {
-          const otherId =
-            rel.personId1 === person.id ? rel.personId2 : rel.personId1;
-          const other = people.find((p) => p.id === otherId);
-          return (
-            <div key={rel.id} className="relationship-row">
-              <span
-                className="rel-badge"
-                style={{ backgroundColor: REL_COLORS[rel.type] ?? "#6b7280" }}
-              >
-                {rel.type}
-              </span>
-              <span className="rel-label">{rel.label}</span>
-              <span className="rel-other">{other?.name ?? "Unknown"}</span>
-              <button
-                className="rel-delete"
-                onClick={() => handleDeleteRelationship(rel.id)}
-              >
-                &times;
-              </button>
-            </div>
-          );
-        })}
+function RelationshipSection({
+  person,
+  people,
+  relationships,
+  onUpdate,
+}: {
+  person: Person;
+  people: Person[];
+  relationships: Relationship[];
+  onUpdate: () => void;
+}) {
+  const [showAddRel, setShowAddRel] = useState(false);
+  const [relTargetId, setRelTargetId] = useState("");
+  const [relType, setRelType] = useState<RelationshipType>("friend");
+  const [relLabel, setRelLabel] = useState("");
+  const [error, setError] = useState("");
 
-        {!showAddRel && otherPeople.length > 0 && (
-          <button className="add-rel-btn" onClick={() => setShowAddRel(true)}>
-            + Add relationship
-          </button>
-        )}
+  const personRels = relationships.filter(
+    (r) => r.personId1 === person.id || r.personId2 === person.id,
+  );
+  const otherPeople = people.filter((p) => p.id !== person.id);
 
-        {showAddRel && (
-          <div className="add-rel-form">
-            <select
-              value={relTargetId}
-              onChange={(e) => setRelTargetId(e.target.value)}
+  const handleAdd = async () => {
+    if (!relTargetId || !relLabel.trim()) return;
+    setError("");
+    try {
+      await api.addRelationship(
+        person.id,
+        relTargetId,
+        relType,
+        relLabel.trim(),
+      );
+      setShowAddRel(false);
+      setRelLabel("");
+      onUpdate();
+    } catch (err) {
+      console.error("Failed to add relationship:", err);
+      setError("Failed to add relationship.");
+    }
+  };
+
+  const handleDelete = async (relId: string) => {
+    try {
+      await api.deleteRelationship(relId);
+      onUpdate();
+    } catch (err) {
+      console.error("Failed to delete relationship:", err);
+    }
+  };
+
+  return (
+    <div className="relationships-section">
+      <h3>Relationships</h3>
+      {personRels.length === 0 && (
+        <p className="empty-hint">No relationships yet.</p>
+      )}
+      {personRels.map((rel) => {
+        const otherId =
+          rel.personId1 === person.id ? rel.personId2 : rel.personId1;
+        const other = people.find((p) => p.id === otherId);
+        return (
+          <div key={rel.id} className="relationship-row">
+            <span
+              className="rel-badge"
+              style={{ backgroundColor: REL_COLORS[rel.type] ?? "#6b7280" }}
             >
-              <option value="">Select person...</option>
-              {otherPeople.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-            <select
-              value={relType}
-              onChange={(e) => setRelType(e.target.value as RelationshipType)}
-            >
-              {RELATIONSHIP_TYPES.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
-            <input
-              placeholder="Label (e.g. sisters)"
-              value={relLabel}
-              onChange={(e) => setRelLabel(e.target.value)}
-            />
-            <div className="add-rel-actions">
-              <button
-                onClick={handleAddRelationship}
-                disabled={!relTargetId || !relLabel.trim()}
-              >
-                Add
-              </button>
-              <button
-                className="cancel-btn"
-                onClick={() => setShowAddRel(false)}
-              >
-                Cancel
-              </button>
-            </div>
+              {rel.type}
+            </span>
+            <span className="rel-label">{rel.label}</span>
+            <span className="rel-other">{other?.name ?? "Unknown"}</span>
+            <button className="rel-delete" onClick={() => handleDelete(rel.id)}>
+              &times;
+            </button>
           </div>
-        )}
-      </div>
+        );
+      })}
 
-      <div className="person-memories-section">
-        <h3>Related memories</h3>
-        {memoriesLoading && <p className="empty-hint">Loading memories...</p>}
-        {!memoriesLoading && memories.length === 0 && (
-          <p className="empty-hint">No memories found for {person.name}.</p>
-        )}
-        {!memoriesLoading && memories.length > 0 && (
-          <div className="memory-list">
-            {memories.map((m) => (
-              <MemoryCard key={m.id} memory={m} onDelete={handleDeleteMemory} />
+      {!showAddRel && otherPeople.length > 0 && (
+        <button className="add-rel-btn" onClick={() => setShowAddRel(true)}>
+          + Add relationship
+        </button>
+      )}
+
+      {showAddRel && (
+        <div className="add-rel-form">
+          <select
+            value={relTargetId}
+            onChange={(e) => setRelTargetId(e.target.value)}
+          >
+            <option value="">Select person...</option>
+            {otherPeople.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
             ))}
+          </select>
+          <select
+            value={relType}
+            onChange={(e) => setRelType(e.target.value as RelationshipType)}
+          >
+            {RELATIONSHIP_TYPES.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+          <input
+            placeholder="Label (e.g. sisters)"
+            value={relLabel}
+            onChange={(e) => setRelLabel(e.target.value)}
+          />
+          <div className="add-rel-actions">
+            <button
+              onClick={handleAdd}
+              disabled={!relTargetId || !relLabel.trim()}
+            >
+              Add
+            </button>
+            <button className="cancel-btn" onClick={() => setShowAddRel(false)}>
+              Cancel
+            </button>
           </div>
-        )}
-      </div>
+          {error && <p className="error">{error}</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PersonMemories({
+  person,
+  memories,
+  loading,
+  onDelete,
+}: {
+  person: Person;
+  memories: Memory[];
+  loading: boolean;
+  onDelete: (id: string) => void;
+}) {
+  return (
+    <div className="person-memories-section">
+      <h3>Related memories</h3>
+      {loading && <p className="empty-hint">Loading memories...</p>}
+      {!loading && memories.length === 0 && (
+        <p className="empty-hint">No memories found for {person.name}.</p>
+      )}
+      {!loading && memories.length > 0 && (
+        <div className="memory-list">
+          {memories.map((m) => (
+            <MemoryCard key={m.id} memory={m} onDelete={onDelete} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// --- Page component ---
+
+export function PersonDetailPage() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const {
+    person,
+    people,
+    relationships,
+    loading,
+    memories,
+    memoriesLoading,
+    reload,
+    deleteMemory,
+  } = usePersonData(id);
+
+  if (loading) {
+    return <p className="empty-state">Loading...</p>;
+  }
+
+  if (!person) {
+    return <p className="empty-state">Person not found.</p>;
+  }
+
+  const otherPeople = people.filter((p) => p.id !== person.id);
+
+  return (
+    <div className="person-detail">
+      <button className="back-btn" onClick={() => navigate("/people")}>
+        &larr; Back
+      </button>
+      <PersonEditForm person={person} onSave={reload} />
+      <MergeSection
+        person={person}
+        otherPeople={otherPeople}
+        onMerge={reload}
+      />
+      <RelationshipSection
+        person={person}
+        people={people}
+        relationships={relationships}
+        onUpdate={reload}
+      />
+      <PersonMemories
+        person={person}
+        memories={memories}
+        loading={memoriesLoading}
+        onDelete={deleteMemory}
+      />
     </div>
   );
 }
