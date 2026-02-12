@@ -264,6 +264,39 @@ export class MemoryStore {
     }));
   }
 
+  async getMemoriesBySubject(names: string[]): Promise<Memory[]> {
+    if (!this.table) throw new Error("Memory store not initialized");
+    if (names.length === 0) return [];
+
+    const count = await this.table.countRows();
+    if (count === 0) return [];
+
+    const escaped = names.map((n) => `'${n.replace(/'/g, "''")}'`);
+    const condition = `subjectName IN (${escaped.join(", ")})`;
+
+    const results = await this.table
+      .query()
+      .select(["id", "userId", "content", "type", "tags", "timestamp", "photoFileId", "source", "subjectName"])
+      .where(condition)
+      .toArray();
+
+    results.sort(
+      (a, b) => (b.timestamp as number) - (a.timestamp as number),
+    );
+
+    return results.map((row) => ({
+      id: row.id as string,
+      userId: row.userId as number,
+      content: row.content as string,
+      type: row.type as MemoryType,
+      tags: row.tags as string,
+      timestamp: row.timestamp as number,
+      photoFileId: (row.photoFileId as string) || undefined,
+      source: (row.source as string) || undefined,
+      subjectName: (row.subjectName as string) || undefined,
+    }));
+  }
+
   async deleteMemory(id: string): Promise<void> {
     if (!this.table) throw new Error("Memory store not initialized");
     await this.table.delete(`id = '${id}'`);

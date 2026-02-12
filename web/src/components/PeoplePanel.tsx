@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { api } from "../api";
-import type { Person, Relationship, RelationshipType } from "@shared/types";
+import type { Memory, Person, Relationship, RelationshipType } from "@shared/types";
 import { PeopleGraph } from "./PeopleGraph";
+import { MemoryCard } from "./MemoryCard";
 
 const RELATIONSHIP_TYPES: RelationshipType[] = [
   "sibling",
@@ -56,6 +57,29 @@ function PersonDetail({
   // Merge state
   const [showMerge, setShowMerge] = useState(false);
   const [mergeTargetId, setMergeTargetId] = useState("");
+
+  // Related memories
+  const [memories, setMemories] = useState<Memory[]>([]);
+  const [memoriesLoading, setMemoriesLoading] = useState(true);
+
+  useEffect(() => {
+    setMemoriesLoading(true);
+    const names = [person.name, ...person.aliases];
+    api
+      .getBySubject(names)
+      .then(({ memories }) => setMemories(memories))
+      .catch((err) => console.error("Failed to load person memories:", err))
+      .finally(() => setMemoriesLoading(false));
+  }, [person.name, person.aliases]);
+
+  const handleDeleteMemory = async (id: string) => {
+    try {
+      await api.deleteMemory(id);
+      setMemories((prev) => prev.filter((m) => m.id !== id));
+    } catch (err) {
+      console.error("Failed to delete memory:", err);
+    }
+  };
 
   const personRels = relationships.filter(
     (r) => r.personId1 === person.id || r.personId2 === person.id,
@@ -329,6 +353,21 @@ function PersonDetail({
                 Cancel
               </button>
             </div>
+          </div>
+        )}
+      </div>
+
+      <div className="person-memories-section">
+        <h3>Related memories</h3>
+        {memoriesLoading && <p className="empty-hint">Loading memories...</p>}
+        {!memoriesLoading && memories.length === 0 && (
+          <p className="empty-hint">No memories found for {person.name}.</p>
+        )}
+        {!memoriesLoading && memories.length > 0 && (
+          <div className="memory-list">
+            {memories.map((m) => (
+              <MemoryCard key={m.id} memory={m} onDelete={handleDeleteMemory} />
+            ))}
           </div>
         )}
       </div>

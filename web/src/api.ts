@@ -54,6 +54,11 @@ export const api = {
     return apiFetch<{ memories: Memory[] }>(`/api/memories/search?${params}`);
   },
 
+  getBySubject: (names: string[]) =>
+    apiFetch<{ memories: Memory[] }>(
+      `/api/memories/by-subject?names=${encodeURIComponent(names.join(","))}`,
+    ),
+
   dateRange: (start: number, end: number, limit = 20) =>
     apiFetch<{ memories: Memory[] }>(
       `/api/memories/date-range?start=${start}&end=${end}&limit=${limit}`,

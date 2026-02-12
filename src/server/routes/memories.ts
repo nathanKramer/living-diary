@@ -36,6 +36,23 @@ export function memoriesRouter(memory: MemoryStore): Router {
     }
   });
 
+  // GET /api/memories/by-subject — filter by subjectName
+  router.get("/by-subject", async (req, res) => {
+    try {
+      const names = String(req.query.names || "");
+      if (!names) {
+        res.status(400).json({ error: "Missing ?names= parameter (comma-separated)" });
+        return;
+      }
+      const nameList = names.split(",").map((n) => n.trim()).filter(Boolean);
+      const results = await memory.getMemoriesBySubject(nameList);
+      res.json({ memories: results });
+    } catch (err) {
+      console.error("API /memories/by-subject error:", err);
+      res.status(500).json({ error: "Subject query failed" });
+    }
+  });
+
   // GET /api/memories/date-range — date range query
   router.get("/date-range", async (req, res) => {
     try {

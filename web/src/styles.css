@@ -858,6 +858,19 @@ nav button.active {
   cursor: not-allowed;
 }
 
+/* Person memories section */
+.person-memories-section {
+  background: #1e293b;
+  padding: 1.25rem;
+  border-radius: 10px;
+  border: 1px solid #334155;
+}
+
+.person-memories-section h3 {
+  font-size: 1rem;
+  margin-bottom: 0.75rem;
+}
+
 /* Relationships section */
 .relationships-section {
   background: #1e293b;
