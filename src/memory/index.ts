@@ -182,18 +182,17 @@ export class MemoryStore {
     const count = await this.table.countRows();
     if (count === 0) return [];
 
+    // LanceDB has no native orderBy, so fetch all (excluding vector), sort, and slice
     const results = await this.table
       .query()
       .select(["id", "userId", "content", "type", "tags", "timestamp", "photoFileId", "source", "subjectName"])
-      .limit(limit)
       .toArray();
 
-    // Sort by timestamp descending (most recent first)
     results.sort(
       (a, b) => (b.timestamp as number) - (a.timestamp as number),
     );
 
-    return results.map((row) => ({
+    return results.slice(0, limit).map((row) => ({
       id: row.id as string,
       userId: row.userId as number,
       content: row.content as string,
