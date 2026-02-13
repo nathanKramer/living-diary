@@ -10,6 +10,7 @@ import { StatsPanel } from "./components/StatsPanel";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { PeoplePanel } from "./components/PeoplePanel";
 import { PersonDetailPage } from "./components/PersonDetailPage";
+import { ChatLogsPanel } from "./components/ChatLogsPanel";
 
 const PAGE_SIZE = 50;
 
@@ -110,6 +111,7 @@ export function App() {
           <Route path="people" element={<PeoplePanel />} />
           <Route path="people/:id" element={<PersonDetailPage />} />
           <Route path="stats" element={<StatsPanel />} />
+          <Route path="chats" element={<ChatLogsPanel />} />
           <Route path="settings" element={<SettingsPanel />} />
         </Route>
       </Routes>

@@ -10,6 +10,7 @@ export function Layout() {
           <NavLink to="/" end>All</NavLink>
           <NavLink to="/search">Search</NavLink>
           <NavLink to="/people">People</NavLink>
+          <NavLink to="/chats">Chats</NavLink>
           <NavLink to="/stats">Stats</NavLink>
           <NavLink to="/settings">Settings</NavLink>
         </nav>

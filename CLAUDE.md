@@ -39,12 +39,14 @@ src/
     routes/persona.ts   # REST API for persona CRUD (generate, edit, reset)
     routes/people.ts    # REST API for people graph CRUD
     routes/core-memories.ts # REST API for core memories (name, entries)
+    routes/chat-logs.ts # REST API for browsing chat logs
     middleware/auth.ts   # Bearer token auth for dashboard
 web/                    # React dashboard (Vite, separate package.json)
   src/
-    App.tsx             # Tab-based root (All / Search / People / Stats / Settings)
+    App.tsx             # Tab-based root (All / Search / People / Chats / Stats / Settings)
     api.ts              # Fetch wrapper with auth token
-    components/         # AuthGate, Layout, MemoryList, MemoryCard, SearchBar, StatsPanel, PersonaPanel, PeoplePanel
+    chat-logs.css       # Chat bubble styles for Chats tab
+    components/         # AuthGate, Layout, MemoryList, MemoryCard, SearchBar, StatsPanel, PersonaPanel, PeoplePanel, ChatLogsPanel
 ```
 
 ## Key design decisions
@@ -113,6 +115,8 @@ Memory API routes: `GET /api/memories`, `GET /api/memories/search`, `GET /api/me
 People API routes: `GET /api/people`, `PUT /api/people/:id`, `POST /api/people/:id/merge`, `DELETE /api/people/:id`, `POST /api/people/relationships`, `DELETE /api/people/relationships/:id`.
 
 Core memories API routes: `GET /api/core-memories`, `PUT /api/core-memories/name`, `POST /api/core-memories/entries`, `DELETE /api/core-memories/entries/:id`.
+
+Chat logs API routes: `GET /api/chat-logs` (list users with logs), `GET /api/chat-logs/:userId` (get messages, optional `?limit=N`).
 
 ## Remaining backlog
 

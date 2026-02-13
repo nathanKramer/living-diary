@@ -159,4 +159,13 @@ export const api = {
 
   deleteCoreMemoryEntry: (id: string) =>
     apiFetch<{ ok: boolean; coreMemories: CoreMemories }>(`/api/core-memories/entries/${id}`, { method: "DELETE" }),
+
+  // Chat logs
+  getChatLogUsers: () =>
+    apiFetch<{ users: Array<{ userId: number; name: string | null }> }>("/api/chat-logs"),
+
+  getChatLogs: (userId: number, limit = 200) =>
+    apiFetch<{ messages: Array<{ role: "user" | "assistant"; content: string; timestamp: number }> }>(
+      `/api/chat-logs/${userId}?limit=${limit}`,
+    ),
 };
