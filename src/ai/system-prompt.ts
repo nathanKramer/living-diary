@@ -38,12 +38,14 @@ export function buildSystemPrompt(
   personaAddition?: string,
   memoryContext?: string,
   coreMemoryContext?: string,
+  notesContext?: string,
 ): string {
   const today = new Date().toISOString().split("T")[0];
   const persona = personaAddition ?? DEFAULT_PERSONA;
   const coreMemory = coreMemoryContext ? `\n\n${coreMemoryContext}` : "";
+  const notes = notesContext ? `\n\n${notesContext}` : "";
   const memory = memoryContext
     ? `\n\n## What you currently remember\n${memoryContext}`
     : "";
-  return `${BASE_PROMPT}\n\nToday's date: ${today}${coreMemory}\n\n${persona}${memory}`;
+  return `${BASE_PROMPT}\n\nToday's date: ${today}${coreMemory}${notes}\n\n${persona}${memory}`;
 }

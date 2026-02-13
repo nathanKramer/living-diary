@@ -24,9 +24,10 @@ src/
   allowlist/index.ts    # AllowlistHolder — persistent approved users + pending requests
   core-memories/index.ts # CoreMemoryHolder — bot's self-knowledge (name, identity facts)
   chat-logs/index.ts    # appendLog() + readRecentLogs() — JSONL chat persistence per user
+  notes/index.ts        # NotesHolder — agent self-reminders (JSON-backed, injected into system prompt)
   ai/
-    index.ts            # generateDiaryResponse() — tool-calling LLM with 6 memory tools
-    system-prompt.ts    # Base prompt + core memories + persona layering, injects today's date
+    index.ts            # generateDiaryResponse() — tool-calling LLM with 8 memory tools
+    system-prompt.ts    # Base prompt + core memories + notes + persona layering, injects today's date
     extract.ts          # Background memory extraction from user messages
     configure.ts        # /configure — generates persona from user description
     describe-photo.ts   # Claude vision — describes photos; LLM people identification for media captions
@@ -40,6 +41,7 @@ src/
     routes/people.ts    # REST API for people graph CRUD
     routes/core-memories.ts # REST API for core memories (name, entries)
     routes/chat-logs.ts # REST API for browsing chat logs
+    routes/notes.ts     # REST API for agent notes CRUD
     middleware/auth.ts   # Bearer token auth for dashboard
 web/                    # React dashboard (Vite, separate package.json)
   src/
@@ -51,7 +53,7 @@ web/                    # React dashboard (Vite, separate package.json)
 
 ## Key design decisions
 
-**Tool calling over hardcoded queries**: The AI has 6 tools (`search_memories`, `search_by_date`, `get_user_facts`, `get_recent_memories`, `send_media`, `get_person_info`) and decides which to call based on the conversation. Uses `stopWhen: stepCountIs(5)` for multi-step tool loops.
+**Tool calling over hardcoded queries**: The AI has 8 tools (`search_memories`, `search_by_date`, `get_user_facts`, `get_recent_memories`, `send_media`, `get_person_info`, `save_note`, `complete_note`) and decides which to call based on the conversation. Uses `stopWhen: stepCountIs(5)` for multi-step tool loops.
 
 **AI SDK v6 specifics**: Tools use `inputSchema` (not `parameters`). Multi-step uses `stopWhen: stepCountIs(n)` (not `maxSteps`). The `tool()` helper is from `ai` package.
 
@@ -76,6 +78,8 @@ web/                    # React dashboard (Vite, separate package.json)
 **Video memories**: Videos are handled like photos but without the vision model call. The caption is stored as the memory content (or a default description if no caption). The Telegram video `file_id` is stored in `photoFileId` (reused to avoid schema changes). The `video_memory` type distinguishes them from photos. `send_media` tool handles both photo and video sending, including mixed media groups via Telegram's `sendMediaGroup`.
 
 **Memory editing**: Memories can be edited inline in the dashboard (content, type, tags, subjectName). `PUT /api/memories/:id` calls `MemoryStore.updateMemory()` which does delete + re-insert (LanceDB has no native row update). If content changes, the vector is re-embedded; otherwise the existing vector is reused (converted from Arrow typed array via `Array.from()`).
+
+**Notes to self**: Agent self-reminders stored in `data/notes.json`. `NotesHolder` follows the same holder pattern as `CoreMemoryHolder`. Notes are injected into the system prompt (after core memories, before persona) so the bot always sees its reminders. Two tools: `save_note` creates a reminder, `complete_note` removes it after acting on it. Notes are exclusively for agent-internal use (e.g. "wish Simon happy birthday on Feb 17th"), not for storing user memories. Max 50 notes enforced. Each note includes its creation date and UUID in the prompt so the bot can judge relevance and complete by ID.
 
 **Chat log persistence**: All chat messages (user and assistant) are persisted to JSONL files at `data/chat-logs/{userId}.jsonl`. Each line is `{"role","content","timestamp"}`. `appendLog()` is fire-and-forget (no await). On bot restart, when a user's session is empty, hydration middleware loads the last 20 messages from their log file via `readRecentLogs()`. This preserves conversational context across restarts. Photo/video handlers log the synthetic session text (e.g. `[User sent a photo with caption: "..."]`) and the bot's reply.
 
@@ -117,6 +121,8 @@ People API routes: `GET /api/people`, `PUT /api/people/:id`, `POST /api/people/:
 Core memories API routes: `GET /api/core-memories`, `PUT /api/core-memories/name`, `POST /api/core-memories/entries`, `DELETE /api/core-memories/entries/:id`.
 
 Chat logs API routes: `GET /api/chat-logs` (list users with logs), `GET /api/chat-logs/:userId` (get messages, optional `?limit=N`).
+
+Notes API routes: `GET /api/notes`, `POST /api/notes`, `DELETE /api/notes/:id`.
 
 ## Remaining backlog
 

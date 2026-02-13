@@ -5,6 +5,7 @@ import { loadPersona, PersonaHolder } from "./persona/index.js";
 import { loadPeopleGraph, PeopleGraphHolder } from "./people/index.js";
 import { loadAllowlist, AllowlistHolder } from "./allowlist/index.js";
 import { loadCoreMemories, CoreMemoryHolder } from "./core-memories/index.js";
+import { loadNotes, NotesHolder } from "./notes/index.js";
 import { startServer } from "./server/index.js";
 
 async function main() {
@@ -36,6 +37,10 @@ async function main() {
     console.log(`Core memories loaded: no name, ${coreMemories.entries.length} entries`);
   }
 
+  const notesData = await loadNotes();
+  const notesHolder = new NotesHolder(notesData);
+  console.log(`Notes loaded: ${notesData.notes.length} notes`);
+
   // Load allowlist and seed from env
   const allowlistData = await loadAllowlist();
   const allowlistHolder = new AllowlistHolder(allowlistData);
@@ -46,9 +51,9 @@ async function main() {
   console.log(`Allowlist: ${allowlistHolder.current.approvedUserIds.length} approved, ${allowlistHolder.current.pendingRequests.length} pending`);
 
   // Start web dashboard
-  startServer(memory, personaHolder, peopleHolder, coreMemoryHolder);
+  startServer(memory, personaHolder, peopleHolder, coreMemoryHolder, notesHolder);
 
-  const bot = createBot(memory, personaHolder, peopleHolder, allowlistHolder, coreMemoryHolder);
+  const bot = createBot(memory, personaHolder, peopleHolder, allowlistHolder, coreMemoryHolder, notesHolder);
 
   // Graceful shutdown
   const shutdown = () => {

@@ -10,6 +10,7 @@ import type { Persona } from "../persona/index.js";
 import type { PeopleGraphHolder } from "../people/index.js";
 import type { AllowlistHolder } from "../allowlist/index.js";
 import type { CoreMemoryHolder } from "../core-memories/index.js";
+import type { NotesHolder } from "../notes/index.js";
 import { appendLog, readRecentLogs } from "../chat-logs/index.js";
 
 const pendingDeletes = new Map<number, string[]>();
@@ -46,7 +47,7 @@ function initialSessionData(): SessionData {
 
 export type BotContext = Context & { session: SessionData };
 
-export function createBot(memory: MemoryStore, personaHolder: PersonaHolder, peopleHolder: PeopleGraphHolder, allowlist: AllowlistHolder, coreMemoryHolder: CoreMemoryHolder): Bot<BotContext> {
+export function createBot(memory: MemoryStore, personaHolder: PersonaHolder, peopleHolder: PeopleGraphHolder, allowlist: AllowlistHolder, coreMemoryHolder: CoreMemoryHolder, notesHolder: NotesHolder): Bot<BotContext> {
   const bot = new Bot<BotContext>(config.telegramBotToken);
 
   // --- Approval callback queries (registered before auth middleware) ---
@@ -596,6 +597,7 @@ export function createBot(memory: MemoryStore, personaHolder: PersonaHolder, peo
           }
         },
         coreMemoryHolder,
+        notesHolder,
       );
 
       // Store assistant response in short-term memory

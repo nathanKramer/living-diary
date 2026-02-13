@@ -7,6 +7,7 @@ import { buildSystemPrompt } from "./system-prompt.js";
 import type { MemoryStore } from "../memory/index.js";
 import type { PeopleGraphHolder } from "../people/index.js";
 import type { CoreMemoryHolder } from "../core-memories/index.js";
+import type { NotesHolder } from "../notes/index.js";
 
 function formatMemory(m: { content: string; timestamp: number; type: string; photoFileId?: string }): string {
   const date = new Date(m.timestamp).toISOString().split("T")[0];
@@ -36,6 +37,7 @@ export async function generateDiaryResponse(
   peopleHolder?: PeopleGraphHolder,
   sendMedia?: (items: Array<{ fileId: string; type: "photo" | "video"; caption?: string }>) => Promise<void>,
   coreMemoryHolder?: CoreMemoryHolder,
+  notesHolder?: NotesHolder,
 ): Promise<string> {
   const messages = buildMessages(recentMessages);
 
@@ -72,7 +74,8 @@ export async function generateDiaryResponse(
     contextParts.length > 0 ? contextParts.join("\n\n") : undefined;
 
   const coreMemoryContext = coreMemoryHolder?.formatForPrompt();
-  const systemPrompt = buildSystemPrompt(persona, memoryContext, coreMemoryContext);
+  const notesContext = notesHolder?.formatForPrompt();
+  const systemPrompt = buildSystemPrompt(persona, memoryContext, coreMemoryContext, notesContext);
   
   const { text } = await generateText({
     model: anthropic(config.aiModel),
@@ -171,6 +174,34 @@ export async function generateDiaryResponse(
             : "";
 
           return detail + memoryLines;
+        },
+      }),
+      save_note: tool({
+        description:
+          "Save a note or reminder for your future self. Use this for things you want to remember to do or say later — like birthdays, follow-ups, or promises you made. NOT for storing memories about the user (those are extracted automatically).",
+        inputSchema: z.object({
+          content: z.string().describe("The note or reminder content"),
+        }),
+        execute: async ({ content }) => {
+          if (!notesHolder) return "Notes are not available.";
+          const note = notesHolder.addNote(content);
+          if (!note) return "Notes limit reached — complete some existing notes first.";
+          await notesHolder.save();
+          return `Note saved (id: ${note.id}).`;
+        },
+      }),
+      complete_note: tool({
+        description:
+          "Mark a note as complete and remove it. Use this after you've acted on a reminder (e.g. wished someone happy birthday, followed up on something).",
+        inputSchema: z.object({
+          note_id: z.string().describe("The ID of the note to complete"),
+        }),
+        execute: async ({ note_id }) => {
+          if (!notesHolder) return "Notes are not available.";
+          const removed = notesHolder.removeNote(note_id);
+          if (!removed) return "Note not found — it may have already been completed.";
+          await notesHolder.save();
+          return "Note completed and removed.";
         },
       }),
     },
