@@ -174,11 +174,12 @@ function PersonEditForm({
             />
           </div>
           <div className="edit-field">
-            <label>Bio</label>
-            <textarea
+            <label>Bio ({bio.length}/50)</label>
+            <input
               value={bio}
-              onChange={(e) => setBio(e.target.value)}
-              rows={3}
+              onChange={(e) => setBio(e.target.value.slice(0, 50))}
+              maxLength={50}
+              placeholder="e.g. software engineer, Nathan's cat"
             />
           </div>
           <div className="edit-actions">

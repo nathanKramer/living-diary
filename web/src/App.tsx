@@ -7,7 +7,7 @@ import { Layout } from "./components/Layout";
 import { MemoryList } from "./components/MemoryList";
 import { SearchBar } from "./components/SearchBar";
 import { StatsPanel } from "./components/StatsPanel";
-import { PersonaPanel } from "./components/PersonaPanel";
+import { SettingsPanel } from "./components/SettingsPanel";
 import { PeoplePanel } from "./components/PeoplePanel";
 import { PersonDetailPage } from "./components/PersonDetailPage";
 
@@ -110,7 +110,7 @@ export function App() {
           <Route path="people" element={<PeoplePanel />} />
           <Route path="people/:id" element={<PersonDetailPage />} />
           <Route path="stats" element={<StatsPanel />} />
-          <Route path="settings" element={<PersonaPanel />} />
+          <Route path="settings" element={<SettingsPanel />} />
         </Route>
       </Routes>
     </AuthGate>

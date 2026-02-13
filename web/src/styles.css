@@ -1295,3 +1295,38 @@ nav a.active {
   background: #FFF3E8;
   border: 2px solid #F5A623;
 }
+
+/* Core memories */
+
+.core-memory-name-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.core-memory-name-row input {
+  flex: 1;
+}
+
+.core-memory-entries {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.core-memory-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.4rem 0.6rem;
+  background: #FFF8F0;
+  border: 1px solid #F0E0D0;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  color: #4A3728;
+}
+
+.core-memory-entry span {
+  flex: 1;
+}

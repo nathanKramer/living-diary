@@ -1,8 +1,136 @@
 import { useState, useEffect } from "react";
 import { api } from "../api";
-import type { Persona } from "../api";
+import type { Persona, CoreMemories } from "../api";
 
-export function PersonaPanel() {
+function CoreMemoriesSection() {
+  const [coreMemories, setCoreMemories] = useState<CoreMemories | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [nameInput, setNameInput] = useState("");
+  const [newEntry, setNewEntry] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    api.getCoreMemories()
+      .then(({ coreMemories }) => {
+        setCoreMemories(coreMemories);
+        setNameInput(coreMemories.name ?? "");
+      })
+      .catch((err) => console.error("Failed to load core memories:", err))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const nameChanged = coreMemories !== null && nameInput !== (coreMemories.name ?? "");
+
+  const handleSaveName = async () => {
+    setSaving(true);
+    setError("");
+    try {
+      const { coreMemories: updated } = await api.setCoreMemoryName(nameInput.trim() || null);
+      setCoreMemories(updated);
+    } catch (err) {
+      console.error("Failed to save name:", err);
+      setError("Failed to save name.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleAddEntry = async () => {
+    if (!newEntry.trim()) return;
+    setError("");
+    try {
+      const { coreMemories: updated } = await api.addCoreMemoryEntry(newEntry.trim());
+      setCoreMemories(updated);
+      setNewEntry("");
+    } catch (err) {
+      console.error("Failed to add entry:", err);
+      setError("Failed to add entry.");
+    }
+  };
+
+  const handleDeleteEntry = async (id: string) => {
+    setError("");
+    try {
+      const { coreMemories: updated } = await api.deleteCoreMemoryEntry(id);
+      setCoreMemories(updated);
+    } catch (err) {
+      console.error("Failed to delete entry:", err);
+      setError("Failed to delete entry.");
+    }
+  };
+
+  if (loading) return null;
+
+  return (
+    <div className="persona-section">
+      <h2>Core Memories</h2>
+      <p className="persona-hint">
+        Things the diary knows about itself — its name and identity.
+      </p>
+
+      <div className="edit-field">
+        <label>Name</label>
+        <div className="core-memory-name-row">
+          <input
+            value={nameInput}
+            onChange={(e) => setNameInput(e.target.value)}
+            placeholder="Give your diary a name..."
+          />
+          {nameChanged && (
+            <button
+              className="save-btn"
+              onClick={handleSaveName}
+              disabled={saving}
+            >
+              {saving ? "Saving..." : "Save"}
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="edit-field">
+        <label>Self-knowledge</label>
+        {coreMemories && coreMemories.entries.length > 0 && (
+          <div className="core-memory-entries">
+            {coreMemories.entries.map((entry) => (
+              <div key={entry.id} className="core-memory-entry">
+                <span>{entry.content}</span>
+                <button
+                  className="rel-delete"
+                  onClick={() => handleDeleteEntry(entry.id)}
+                >
+                  &times;
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="core-memory-name-row">
+          <input
+            value={newEntry}
+            onChange={(e) => setNewEntry(e.target.value)}
+            placeholder="e.g. I belong to the Kramer family"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleAddEntry();
+            }}
+          />
+          <button
+            className="save-btn"
+            onClick={handleAddEntry}
+            disabled={!newEntry.trim()}
+          >
+            Add
+          </button>
+        </div>
+      </div>
+
+      {error && <p className="error">{error}</p>}
+    </div>
+  );
+}
+
+function PersonaSection() {
   const [persona, setPersona] = useState<Persona | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
@@ -76,7 +204,7 @@ export function PersonaPanel() {
   }
 
   return (
-    <div className="persona-panel">
+    <>
       <div className="persona-section">
         <h2>Persona</h2>
         <p className="persona-hint">
@@ -158,6 +286,15 @@ export function PersonaPanel() {
           <p className="persona-default">Using default persona (personal diary companion)</p>
         )}
       </div>
+    </>
+  );
+}
+
+export function SettingsPanel() {
+  return (
+    <div className="persona-panel">
+      <CoreMemoriesSection />
+      <PersonaSection />
     </div>
   );
 }

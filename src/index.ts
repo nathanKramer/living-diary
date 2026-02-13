@@ -4,6 +4,7 @@ import { MemoryStore } from "./memory/index.js";
 import { loadPersona, PersonaHolder } from "./persona/index.js";
 import { loadPeopleGraph, PeopleGraphHolder } from "./people/index.js";
 import { loadAllowlist, AllowlistHolder } from "./allowlist/index.js";
+import { loadCoreMemories, CoreMemoryHolder } from "./core-memories/index.js";
 import { startServer } from "./server/index.js";
 
 async function main() {
@@ -27,6 +28,14 @@ async function main() {
   const peopleHolder = new PeopleGraphHolder(peopleGraph);
   console.log(`People graph loaded: ${peopleGraph.people.length} people, ${peopleGraph.relationships.length} relationships`);
 
+  const coreMemories = await loadCoreMemories();
+  const coreMemoryHolder = new CoreMemoryHolder(coreMemories);
+  if (coreMemories.name) {
+    console.log(`Core memories loaded: name="${coreMemories.name}", ${coreMemories.entries.length} entries`);
+  } else {
+    console.log(`Core memories loaded: no name, ${coreMemories.entries.length} entries`);
+  }
+
   // Load allowlist and seed from env
   const allowlistData = await loadAllowlist();
   const allowlistHolder = new AllowlistHolder(allowlistData);
@@ -37,9 +46,9 @@ async function main() {
   console.log(`Allowlist: ${allowlistHolder.current.approvedUserIds.length} approved, ${allowlistHolder.current.pendingRequests.length} pending`);
 
   // Start web dashboard
-  startServer(memory, personaHolder, peopleHolder);
+  startServer(memory, personaHolder, peopleHolder, coreMemoryHolder);
 
-  const bot = createBot(memory, personaHolder, peopleHolder, allowlistHolder);
+  const bot = createBot(memory, personaHolder, peopleHolder, allowlistHolder, coreMemoryHolder);
 
   // Graceful shutdown
   const shutdown = () => {
@@ -56,6 +65,7 @@ async function main() {
     { command: "help", description: "List all commands" },
     { command: "configure", description: "Change how I behave" },
     { command: "persona", description: "Show current persona" },
+    { command: "name", description: "Set or view my name" },
     { command: "search", description: "Search your memories" },
     { command: "stats", description: "Memory statistics" },
     { command: "export", description: "Download all your data" },

@@ -7,11 +7,13 @@ import { authMiddleware } from "./middleware/auth.js";
 import { memoriesRouter } from "./routes/memories.js";
 import { personaRouter } from "./routes/persona.js";
 import { peopleRouter } from "./routes/people.js";
+import { coreMemoriesRouter } from "./routes/core-memories.js";
 import type { MemoryStore } from "../memory/index.js";
 import type { PersonaHolder } from "../persona/index.js";
 import type { PeopleGraphHolder } from "../people/index.js";
+import type { CoreMemoryHolder } from "../core-memories/index.js";
 
-export function startServer(memory: MemoryStore, personaHolder: PersonaHolder, peopleHolder: PeopleGraphHolder): void {
+export function startServer(memory: MemoryStore, personaHolder: PersonaHolder, peopleHolder: PeopleGraphHolder, coreMemoryHolder: CoreMemoryHolder): void {
   const app = express();
 
   // API routes (auth-protected)
@@ -20,6 +22,7 @@ export function startServer(memory: MemoryStore, personaHolder: PersonaHolder, p
   app.use("/api/memories", memoriesRouter(memory));
   app.use("/api/persona", personaRouter(personaHolder));
   app.use("/api/people", peopleRouter(peopleHolder));
+  app.use("/api/core-memories", coreMemoriesRouter(coreMemoryHolder));
 
   // Media proxy — streams photos/videos from Telegram on-demand
   app.get("/api/media/:fileId", async (req, res) => {

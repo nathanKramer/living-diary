@@ -3,6 +3,7 @@ import { anthropic } from "@ai-sdk/anthropic";
 import { config } from "../config.js";
 import type { MemoryStore, MemoryType } from "../memory/index.js";
 import type { PeopleGraphHolder } from "../people/index.js";
+import type { CoreMemoryHolder } from "../core-memories/index.js";
 import type { RelationshipType } from "../shared/types.js";
 
 const EXTRACTION_PROMPT = `You are a memory extraction system for a personal diary app. Analyze the conversation and extract important information worth remembering long-term.
@@ -21,7 +22,7 @@ Return a JSON object with this exact shape:
     {
       "name": "string — the person's primary name",
       "aliases": ["string — nicknames or alternate names, e.g. 'Mum'"],
-      "bio_snippet": "string — a short factual description to add to their bio",
+      "bio_snippet": "string — a very brief label, max 50 characters (e.g. 'Nathan's cat', 'software engineer')",
       "relationships": [
         {
           "related_to": "string — name of the other person",
@@ -30,7 +31,11 @@ Return a JSON object with this exact shape:
         }
       ]
     }
-  ]
+  ],
+  "core_updates": {
+    "name": "string | null — a name the user gives you (e.g. 'Luna'). Only set if the user explicitly names you.",
+    "entries": ["string — things the user tells you about yourself, e.g. 'you belong to the Kramer family'"]
+  }
 }
 
 ## Memory types
@@ -53,11 +58,18 @@ Return a JSON object with this exact shape:
 
 When the user mentions people (including pets), extract structured information about them in the "people_updates" array:
 - Extract the person's name and any aliases/nicknames
-- Extract a brief bio snippet if new factual info is shared (job, location, age, etc.)
+- Extract a concise bio label (max 50 characters) if new factual info is shared — this should be a short descriptor like "software engineer" or "Nathan's cat", not accumulated detail
 - Extract relationships between people (e.g. if "Lizzy is my sister", create a relationship between the user and Lizzy with type "sibling")
 - Pets are treated as people with a "pet" relationship type (person1=owner, person2=pet)
 - Only include people_updates when there's genuinely new information about people or relationships
 - If no people info is mentioned, omit the "people_updates" field or set it to []
+
+## Core updates
+
+If the user names you or tells you something about yourself (e.g. "your name is Luna", "you belong to the Kramer family", "I made you for our family"), extract it in the "core_updates" object:
+- Set "name" only if the user explicitly gives you a name (e.g. "I'll call you Luna", "your name is Diary")
+- Add entries for things the user tells you about yourself that aren't covered by name
+- If neither applies, omit "core_updates" entirely
 
 ## Context
 
@@ -92,6 +104,11 @@ interface PeopleUpdate {
   }>;
 }
 
+interface CoreUpdates {
+  name?: string | null;
+  entries?: string[];
+}
+
 interface ExtractionResult {
   memories: Array<{
     content: string;
@@ -100,6 +117,7 @@ interface ExtractionResult {
     subject?: string;
   }>;
   people_updates?: PeopleUpdate[];
+  core_updates?: CoreUpdates;
 }
 
 const VALID_RELATIONSHIP_TYPES = new Set<RelationshipType>([
@@ -148,7 +166,24 @@ function parseExtraction(text: string): ExtractionResult {
       if (people_updates.length === 0) people_updates = undefined;
     }
 
-    return { memories, people_updates };
+    // Validate core_updates if present
+    let core_updates: CoreUpdates | undefined;
+    if (parsed.core_updates && typeof parsed.core_updates === "object") {
+      const cu = parsed.core_updates;
+      const hasName = typeof cu.name === "string" && cu.name.length > 0;
+      const hasEntries = Array.isArray(cu.entries) && cu.entries.length > 0;
+      if (hasName || hasEntries) {
+        core_updates = {
+          name: hasName ? cu.name : undefined,
+          entries: hasEntries ? cu.entries!.filter((e: unknown) => typeof e === "string" && (e as string).length > 0) : undefined,
+        };
+        if (!core_updates.name && (!core_updates.entries || core_updates.entries.length === 0)) {
+          core_updates = undefined;
+        }
+      }
+    }
+
+    return { memories, people_updates, core_updates };
   } catch {
     console.error("Failed to parse extraction result:", cleaned);
     return { memories: [] };
@@ -161,6 +196,7 @@ export async function extractAndStoreMemories(
   userId: number,
   userName?: string,
   peopleHolder?: PeopleGraphHolder,
+  coreMemoryHolder?: CoreMemoryHolder,
 ): Promise<void> {
   // Only extract if there's enough conversation to work with
   if (recentMessages.length < 2) return;
@@ -204,18 +240,21 @@ export async function extractAndStoreMemories(
     ? `\n\nKnown people:\n${peopleContext}`
     : "";
 
+  const extractionPrompt = `${contextBlock}${peopleBlock}${userNameBlock}\n\nNew message from user:\n${conversationText}`;
+
   const { text } = await generateText({
     model: anthropic(config.aiModel),
     system: EXTRACTION_PROMPT,
-    prompt: `${contextBlock}${peopleBlock}${userNameBlock}\n\nNew message from user:\n${conversationText}`,
+    prompt: extractionPrompt,
   });
 
   const result = parseExtraction(text);
 
   const hasMemories = result.memories.length > 0;
   const hasPeopleUpdates = result.people_updates && result.people_updates.length > 0;
+  const hasCoreUpdates = result.core_updates !== undefined;
 
-  if (!hasMemories && !hasPeopleUpdates) return;
+  if (!hasMemories && !hasPeopleUpdates && !hasCoreUpdates) return;
 
   // Store each extracted memory (addMemory handles dedup via vector similarity)
   for (const mem of result.memories) {
@@ -243,13 +282,9 @@ export async function extractAndStoreMemories(
         }
       }
 
-      // Append bio snippet
+      // Replace bio with new snippet (capped at 50 chars)
       if (update.bio_snippet) {
-        if (!person.bio) {
-          person.bio = update.bio_snippet;
-        } else if (!person.bio.toLowerCase().includes(update.bio_snippet.toLowerCase())) {
-          person.bio = `${person.bio}. ${update.bio_snippet}`;
-        }
+        person.bio = update.bio_snippet.slice(0, 50);
       }
 
       // Link Telegram user if name matches
@@ -271,5 +306,23 @@ export async function extractAndStoreMemories(
     }
 
     await peopleHolder.save();
+  }
+
+  // Process core updates (things the bot learns about itself)
+  if (hasCoreUpdates && coreMemoryHolder) {
+    const cu = result.core_updates!;
+    if (cu.name) {
+      coreMemoryHolder.setName(cu.name);
+      console.log(`Core memory: name set to "${cu.name}"`);
+    }
+    if (cu.entries) {
+      for (const entry of cu.entries) {
+        const added = coreMemoryHolder.addEntry(entry);
+        if (added) {
+          console.log(`Core memory: added "${entry}"`);
+        }
+      }
+    }
+    await coreMemoryHolder.save();
   }
 }

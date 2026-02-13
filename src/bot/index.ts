@@ -9,6 +9,7 @@ import { savePersona, PersonaHolder } from "../persona/index.js";
 import type { Persona } from "../persona/index.js";
 import type { PeopleGraphHolder } from "../people/index.js";
 import type { AllowlistHolder } from "../allowlist/index.js";
+import type { CoreMemoryHolder } from "../core-memories/index.js";
 
 const pendingDeletes = new Map<number, string[]>();
 
@@ -44,7 +45,7 @@ function initialSessionData(): SessionData {
 
 export type BotContext = Context & { session: SessionData };
 
-export function createBot(memory: MemoryStore, personaHolder: PersonaHolder, peopleHolder: PeopleGraphHolder, allowlist: AllowlistHolder): Bot<BotContext> {
+export function createBot(memory: MemoryStore, personaHolder: PersonaHolder, peopleHolder: PeopleGraphHolder, allowlist: AllowlistHolder, coreMemoryHolder: CoreMemoryHolder): Bot<BotContext> {
   const bot = new Bot<BotContext>(config.telegramBotToken);
 
   // --- Approval callback queries (registered before auth middleware) ---
@@ -152,7 +153,8 @@ export function createBot(memory: MemoryStore, personaHolder: PersonaHolder, peo
         "/resume — Resume proactive messages\n" +
         "/delete_all — Delete everything (careful!)\n" +
         "/configure <description> — Change how I behave\n" +
-        "/persona — Show current persona\n\n" +
+        "/persona — Show current persona\n" +
+        "/name <name> — Set or view my name\n\n" +
         "You can also send me photos and I'll remember them too.\n\n" +
         "Or just send me a message and we'll talk."
     );
@@ -207,6 +209,23 @@ export function createBot(memory: MemoryStore, personaHolder: PersonaHolder, peo
       `Current configuration: "${personaHolder.current.description}"\n\n` +
         personaHolder.current.systemPromptAddition,
     );
+  });
+
+  bot.command("name", async (ctx) => {
+    const newName = ctx.match;
+    if (!newName) {
+      const current = coreMemoryHolder.current.name;
+      if (current) {
+        await ctx.reply(`My name is ${current}. Use /name <new name> to change it.`);
+      } else {
+        await ctx.reply("I don't have a name yet. Use /name <name> to give me one.");
+      }
+      return;
+    }
+
+    coreMemoryHolder.setName(newName.trim());
+    await coreMemoryHolder.save();
+    await ctx.reply(`Got it! You can call me ${newName.trim()} from now on.`);
   });
 
   bot.command("search", async (ctx) => {
@@ -527,6 +546,7 @@ export function createBot(memory: MemoryStore, personaHolder: PersonaHolder, peo
         personaHolder.current?.systemPromptAddition,
         peopleHolder,
         async (items) => {
+          // sendMedia callback
           if (items.length === 1) {
             const item = items[0]!;
             const opts = item.caption ? { caption: item.caption } : undefined;
@@ -545,6 +565,7 @@ export function createBot(memory: MemoryStore, personaHolder: PersonaHolder, peo
             );
           }
         },
+        coreMemoryHolder,
       );
 
       // Store assistant response in short-term memory
@@ -559,6 +580,7 @@ export function createBot(memory: MemoryStore, personaHolder: PersonaHolder, peo
         userId,
         ctx.from.first_name,
         peopleHolder,
+        coreMemoryHolder,
       ).catch((err) => console.error("Memory extraction failed:", err));
     } catch (err) {
       console.error("AI generation failed:", err);

@@ -37,6 +37,18 @@ export interface Persona {
   updatedAt: number;
 }
 
+export interface CoreMemoryEntry {
+  id: string;
+  content: string;
+  createdAt: number;
+}
+
+export interface CoreMemories {
+  name: string | null;
+  entries: CoreMemoryEntry[];
+  updatedAt: number;
+}
+
 export interface Stats {
   count: number;
   byType: Record<string, number>;
@@ -126,4 +138,25 @@ export const api = {
 
   deleteRelationship: (id: string) =>
     apiFetch<{ ok: boolean }>(`/api/people/relationships/${id}`, { method: "DELETE" }),
+
+  // Core memories
+  getCoreMemories: () =>
+    apiFetch<{ coreMemories: CoreMemories }>("/api/core-memories"),
+
+  setCoreMemoryName: (name: string | null) =>
+    apiFetch<{ coreMemories: CoreMemories }>("/api/core-memories/name", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    }),
+
+  addCoreMemoryEntry: (content: string) =>
+    apiFetch<{ entry: CoreMemoryEntry; coreMemories: CoreMemories }>("/api/core-memories/entries", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content }),
+    }),
+
+  deleteCoreMemoryEntry: (id: string) =>
+    apiFetch<{ ok: boolean; coreMemories: CoreMemories }>(`/api/core-memories/entries/${id}`, { method: "DELETE" }),
 };

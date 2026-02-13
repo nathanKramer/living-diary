@@ -6,6 +6,7 @@ import { config } from "../config.js";
 import { buildSystemPrompt } from "./system-prompt.js";
 import type { MemoryStore } from "../memory/index.js";
 import type { PeopleGraphHolder } from "../people/index.js";
+import type { CoreMemoryHolder } from "../core-memories/index.js";
 
 function formatMemory(m: { content: string; timestamp: number; type: string; photoFileId?: string }): string {
   const date = new Date(m.timestamp).toISOString().split("T")[0];
@@ -34,6 +35,7 @@ export async function generateDiaryResponse(
   persona?: string,
   peopleHolder?: PeopleGraphHolder,
   sendMedia?: (items: Array<{ fileId: string; type: "photo" | "video"; caption?: string }>) => Promise<void>,
+  coreMemoryHolder?: CoreMemoryHolder,
 ): Promise<string> {
   const messages = buildMessages(recentMessages);
 
@@ -69,7 +71,8 @@ export async function generateDiaryResponse(
   const memoryContext =
     contextParts.length > 0 ? contextParts.join("\n\n") : undefined;
 
-  const systemPrompt = buildSystemPrompt(persona, memoryContext);
+  const coreMemoryContext = coreMemoryHolder?.formatForPrompt();
+  const systemPrompt = buildSystemPrompt(persona, memoryContext, coreMemoryContext);
   
   const { text } = await generateText({
     model: anthropic(config.aiModel),

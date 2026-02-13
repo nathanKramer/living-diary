@@ -89,7 +89,7 @@ export class PeopleGraphHolder {
 
     if (updates.name !== undefined) person.name = updates.name;
     if (updates.aliases !== undefined) person.aliases = updates.aliases;
-    if (updates.bio !== undefined) person.bio = updates.bio;
+    if (updates.bio !== undefined) person.bio = updates.bio.slice(0, 50);
     if (updates.telegramUserId !== undefined) person.telegramUserId = updates.telegramUserId;
     person.updatedAt = Date.now();
     return person;
@@ -150,11 +150,9 @@ export class PeopleGraphHolder {
     allAliases.delete(keep.name); // Don't include the primary name as alias
     keep.aliases = [...allAliases];
 
-    // Merge bio
-    if (merge.bio && !keep.bio) {
-      keep.bio = merge.bio;
-    } else if (merge.bio && keep.bio) {
-      keep.bio = `${keep.bio} ${merge.bio}`;
+    // Merge bio — keep primary's bio, fall back to merge source's
+    if (!keep.bio && merge.bio) {
+      keep.bio = merge.bio.slice(0, 50);
     }
 
     // Adopt telegram user ID if keep doesn't have one
