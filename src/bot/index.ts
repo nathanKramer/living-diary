@@ -627,9 +627,8 @@ export function createBot(memory: MemoryStore, personaHolder: PersonaHolder, peo
 
       // Log tool calls
       for (const tc of toolCalls) {
-        const resultPreview = tc.result.length > 200 ? tc.result.slice(0, 200) + "..." : tc.result;
-        const summary = `${tc.toolName}(${JSON.stringify(tc.args)}) → ${resultPreview}`;
-        appendLog(userId, "tool", summary, tc.toolName, tc.args);
+        const argsSummary = JSON.stringify(tc.args);
+        appendLog(userId, "tool", argsSummary, tc.toolName, tc.args, tc.result);
       }
 
       // Store assistant response in short-term memory

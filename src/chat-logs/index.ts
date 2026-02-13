@@ -9,6 +9,7 @@ interface LogEntry {
   timestamp: number;
   toolName?: string;
   toolArgs?: Record<string, unknown>;
+  toolResult?: string;
 }
 
 export function appendLog(
@@ -17,10 +18,12 @@ export function appendLog(
   content: string,
   toolName?: string,
   toolArgs?: Record<string, unknown>,
+  toolResult?: string,
 ): void {
   const entry: LogEntry = { role, content, timestamp: Date.now() };
   if (toolName) entry.toolName = toolName;
   if (toolArgs) entry.toolArgs = toolArgs;
+  if (toolResult) entry.toolResult = toolResult;
   const line = JSON.stringify(entry) + "\n";
   const filePath = join(CHAT_LOGS_DIR, `${userId}.jsonl`);
 
@@ -84,6 +87,7 @@ export interface ChatLogEntry {
   timestamp: number;
   toolName?: string;
   toolArgs?: Record<string, unknown>;
+  toolResult?: string;
 }
 
 export async function readLogs(
@@ -108,6 +112,7 @@ export async function readLogs(
       const entry: ChatLogEntry = { role: parsed.role, content: parsed.content, timestamp: parsed.timestamp };
       if (parsed.toolName) entry.toolName = parsed.toolName;
       if (parsed.toolArgs) entry.toolArgs = parsed.toolArgs;
+      if (parsed.toolResult) entry.toolResult = parsed.toolResult;
       entries.push(entry);
     } catch {
       // Skip malformed lines

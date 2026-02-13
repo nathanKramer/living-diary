@@ -217,7 +217,7 @@ export async function generateDiaryResponse(
         },
       }),
     },
-    stopWhen: stepCountIs(5),
+    stopWhen: stepCountIs(10),
   });
 
   // Extract tool call logs from all steps

@@ -12,6 +12,8 @@ interface ChatMessage {
   content: string;
   timestamp: number;
   toolName?: string;
+  toolArgs?: Record<string, unknown>;
+  toolResult?: string;
 }
 
 function formatTime(ts: number): string {
@@ -28,6 +30,7 @@ export function ChatLogsPanel() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [expandedTools, setExpandedTools] = useState<Set<number>>(new Set());
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -60,6 +63,15 @@ export function ChatLogsPanel() {
     return <p className="empty-state">No chat logs yet. Start a conversation with the bot!</p>;
   }
 
+  function toggleToolExpand(index: number) {
+    setExpandedTools((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return next;
+    });
+  }
+
   // Group messages by date for dividers
   function renderMessages(msgs: ChatMessage[]) {
     const elements: React.ReactNode[] = [];
@@ -79,10 +91,34 @@ export function ChatLogsPanel() {
       }
 
       if (msg.role === "tool") {
+        const isExpanded = expandedTools.has(i);
+        const hasDetail = Boolean(msg.toolArgs || msg.toolResult);
         elements.push(
           <div key={i} className="chat-tool-call">
-            <span className="chat-tool-name">{msg.toolName ?? "tool"}</span>
-            <span className="chat-tool-detail">{msg.content}</span>
+            <div
+              className={`chat-tool-header${hasDetail ? " expandable" : ""}`}
+              onClick={hasDetail ? () => toggleToolExpand(i) : undefined}
+            >
+              <span className="chat-tool-name">{msg.toolName ?? "tool"}</span>
+              <span className="chat-tool-args">{msg.content}</span>
+              {hasDetail && <span className="chat-tool-chevron">{isExpanded ? "\u25B2" : "\u25BC"}</span>}
+            </div>
+            {isExpanded && (
+              <div className="chat-tool-body">
+                {msg.toolArgs && (
+                  <div className="chat-tool-section">
+                    <div className="chat-tool-section-label">Args</div>
+                    <pre className="chat-tool-pre">{JSON.stringify(msg.toolArgs, null, 2)}</pre>
+                  </div>
+                )}
+                {msg.toolResult && (
+                  <div className="chat-tool-section">
+                    <div className="chat-tool-section-label">Result</div>
+                    <pre className="chat-tool-pre">{msg.toolResult}</pre>
+                  </div>
+                )}
+              </div>
+            )}
           </div>,
         );
       } else {

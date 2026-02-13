@@ -165,7 +165,7 @@ export const api = {
     apiFetch<{ users: Array<{ userId: number; name: string | null }> }>("/api/chat-logs"),
 
   getChatLogs: (userId: number, limit = 200) =>
-    apiFetch<{ messages: Array<{ role: "user" | "assistant" | "tool"; content: string; timestamp: number; toolName?: string; toolArgs?: Record<string, unknown> }> }>(
+    apiFetch<{ messages: Array<{ role: "user" | "assistant" | "tool"; content: string; timestamp: number; toolName?: string; toolArgs?: Record<string, unknown>; toolResult?: string }> }>(
       `/api/chat-logs/${userId}?limit=${limit}`,
     ),
 };

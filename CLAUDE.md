@@ -54,7 +54,7 @@ web/                    # React dashboard (Vite, separate package.json)
 
 ## Key design decisions
 
-**Tool calling over hardcoded queries**: The AI has 8 tools (`search_memories`, `search_by_date`, `get_user_facts`, `get_recent_memories`, `send_media`, `get_person_info`, `save_note`, `complete_note`) and decides which to call based on the conversation. Uses `stopWhen: stepCountIs(5)` for multi-step tool loops.
+**Tool calling over hardcoded queries**: The AI has 8 tools (`search_memories`, `search_by_date`, `get_user_facts`, `get_recent_memories`, `send_media`, `get_person_info`, `save_note`, `complete_note`) and decides which to call based on the conversation. Uses `stopWhen: stepCountIs(10)` for multi-step tool loops.
 
 **AI SDK v6 specifics**: Tools use `inputSchema` (not `parameters`). Multi-step uses `stopWhen: stepCountIs(n)` (not `maxSteps`). The `tool()` helper is from `ai` package.
 
