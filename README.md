@@ -15,7 +15,29 @@ An AI-powered memory companion that lives in Telegram. Talk to it about your day
 
 ## Setup
 
-Requires Node.js 20+ and [pnpm](https://pnpm.io/).
+### Prerequisites
+
+- Node.js 20+
+- [pnpm](https://pnpm.io/)
+- A Telegram account
+- API keys for [Anthropic](https://console.anthropic.com/) (Claude) and [OpenAI](https://platform.openai.com/) (embeddings)
+
+### 1. Create a Telegram bot
+
+1. Open Telegram and message [@BotFather](https://t.me/BotFather)
+2. Send `/newbot` and follow the prompts to choose a name and username
+3. BotFather will give you a **bot token** -- save this for your `.env`
+4. Optionally, send `/setdescription` to set what users see when they first open your bot
+5. Optionally, send `/setuserpic` to give your bot a profile photo
+
+### 2. Get your Telegram user ID
+
+The bot needs your user ID to send you approval requests when new users message it.
+
+1. Message [@userinfobot](https://t.me/userinfobot) on Telegram
+2. It will reply with your user ID (a number like `123456789`)
+
+### 3. Install and configure
 
 ```bash
 pnpm install
@@ -27,13 +49,13 @@ Fill in your `.env`:
 
 | Variable | Required | Description |
 |---|---|---|
-| `TELEGRAM_BOT_TOKEN` | Yes | From [@BotFather](https://t.me/BotFather) |
-| `ANTHROPIC_API_KEY` | Yes | Claude API key |
-| `OPENAI_API_KEY` | Yes | For embeddings (text-embedding-3-small) |
-| `ADMIN_TELEGRAM_ID` | Yes | Your Telegram user ID (receives approval requests) |
-| `ALLOWED_USER_IDS` | No | Comma-separated seed IDs (merged into allowlist on startup) |
+| `TELEGRAM_BOT_TOKEN` | Yes | Bot token from BotFather (step 1) |
+| `ANTHROPIC_API_KEY` | Yes | From [Anthropic Console](https://console.anthropic.com/) |
+| `OPENAI_API_KEY` | Yes | From [OpenAI Platform](https://platform.openai.com/) -- used for embeddings only (text-embedding-3-small) |
+| `ADMIN_TELEGRAM_ID` | Yes | Your Telegram user ID (step 2) -- receives approval requests for new users |
+| `ALLOWED_USER_IDS` | No | Comma-separated user IDs to pre-approve on first startup |
 | `AI_MODEL` | No | Defaults to `claude-sonnet-4-5-20250929` |
-| `DASHBOARD_TOKEN` | No | Protects the web dashboard |
+| `DASHBOARD_TOKEN` | No | Set a password to protect the web dashboard |
 
 ## Running
 
