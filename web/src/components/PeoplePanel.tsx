@@ -5,14 +5,14 @@ import type { Person, Relationship } from "@shared/types";
 import { PeopleGraph } from "./PeopleGraph";
 
 const REL_COLORS: Record<string, string> = {
-  sibling: "#3b82f6",
-  parent: "#8b5cf6",
-  child: "#8b5cf6",
-  partner: "#ec4899",
-  friend: "#10b981",
-  coworker: "#f59e0b",
-  pet: "#f97316",
-  other: "#6b7280",
+  sibling: "#F5A623",
+  parent: "#A78BDB",
+  child: "#A78BDB",
+  partner: "#E88FB4",
+  friend: "#7CB86A",
+  coworker: "#FF9B71",
+  pet: "#E87461",
+  other: "#A89585",
 };
 
 export function PeoplePanel() {

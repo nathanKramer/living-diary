@@ -3,12 +3,12 @@ import type { Memory, MemoryType } from "@shared/types";
 import { api, getToken } from "../api";
 
 const TYPE_COLORS: Record<string, string> = {
-  diary_entry: "#4a9eff",
-  user_fact: "#10b981",
-  photo_memory: "#f59e0b",
-  video_memory: "#ef4444",
-  conversation_summary: "#8b5cf6",
-  reflection: "#ec4899",
+  diary_entry: "#F5A623",
+  user_fact: "#7CB86A",
+  photo_memory: "#FF9B71",
+  video_memory: "#E87461",
+  conversation_summary: "#A78BDB",
+  reflection: "#E88FB4",
 };
 
 const MEMORY_TYPES: MemoryType[] = [
