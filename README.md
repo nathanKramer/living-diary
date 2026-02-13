@@ -9,8 +9,9 @@ An AI-powered memory companion that lives in Telegram. Talk to it about your day
 - **Remembers conversations** -- extracts facts, diary entries, and details about people from your messages
 - **Recalls naturally** -- uses vector search and tool calling to reference past conversations when relevant
 - **Knows your people** -- builds a structured graph of people and relationships as you mention them
-- **Understands photos** -- describe and store photos via Claude vision
-- **Web dashboard** -- browse memories, search, view your people graph (with D3 force-directed visualization), manage persona settings
+- **Understands photos** -- describe and store photos via Claude vision, automatically tag people mentioned in captions
+- **Stores videos** -- save video messages with captions and people tags
+- **Web dashboard** -- browse, edit, and search memories, view your people graph (with D3 force-directed visualization), manage persona settings
 
 ## Setup
 
@@ -70,7 +71,7 @@ TypeScript, [grammY](https://grammy.dev/), [Vercel AI SDK](https://sdk.vercel.ai
 
 All data lives in `data/` (git-ignored):
 
-- **LanceDB** -- vector-indexed memories (diary entries, user facts, photos)
+- **LanceDB** -- vector-indexed memories (diary entries, user facts, photos, videos)
 - **people.json** -- structured people and relationships graph
 - **persona.json** -- custom bot persona configuration
 - **allowlist.json** -- approved user IDs and pending approval requests

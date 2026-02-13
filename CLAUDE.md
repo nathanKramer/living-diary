@@ -27,13 +27,13 @@ src/
     system-prompt.ts    # Base prompt + persona layering, injects today's date
     extract.ts          # Background memory extraction from user messages
     configure.ts        # /configure — generates persona from user description
-    describe-photo.ts   # Claude vision — describes photos for memory storage
-  memory/index.ts       # MemoryStore class — LanceDB CRUD with vector dedup
+    describe-photo.ts   # Claude vision — describes photos; LLM people identification for media captions
+  memory/index.ts       # MemoryStore class — LanceDB CRUD with vector dedup and update
   persona/index.ts      # Load/save/delete persona + PersonaHolder shared state
   people/index.ts       # PeopleGraphHolder — JSON-backed people & relationships graph
   server/
     index.ts            # Express app — serves dashboard API and static files
-    routes/memories.ts  # REST API for memory browsing
+    routes/memories.ts  # REST API for memory browsing and editing
     routes/persona.ts   # REST API for persona CRUD (generate, edit, reset)
     routes/people.ts    # REST API for people graph CRUD
     middleware/auth.ts   # Bearer token auth for dashboard
@@ -46,7 +46,7 @@ web/                    # React dashboard (Vite, separate package.json)
 
 ## Key design decisions
 
-**Tool calling over hardcoded queries**: The AI has 6 tools (`search_memories`, `search_by_date`, `get_user_facts`, `get_recent_memories`, `send_photo`, `get_person_info`) and decides which to call based on the conversation. Uses `stopWhen: stepCountIs(5)` for multi-step tool loops.
+**Tool calling over hardcoded queries**: The AI has 6 tools (`search_memories`, `search_by_date`, `get_user_facts`, `get_recent_memories`, `send_media`, `get_person_info`) and decides which to call based on the conversation. Uses `stopWhen: stepCountIs(5)` for multi-step tool loops.
 
 **AI SDK v6 specifics**: Tools use `inputSchema` (not `parameters`). Multi-step uses `stopWhen: stepCountIs(n)` (not `maxSteps`). The `tool()` helper is from `ai` package.
 
@@ -63,6 +63,12 @@ web/                    # React dashboard (Vite, separate package.json)
 **Safety guardrails**: Two layers prevent storage of sensitive data (passwords, API keys, tokens, credit card numbers, etc.). The system prompt instructs the bot to warn users that memories are not a safe place for secrets. The extraction prompt has a hard rule to never extract credentials or sensitive information.
 
 **People graph**: A JSON file at `data/people.json` stores structured people and relationship data. `PeopleGraphHolder` provides shared mutable state (like `PersonaHolder`). The extraction pipeline populates it automatically when users mention people. Relationships are bidirectional at query time. Pets are modeled as `Person` entries with a `pet` relationship type. `user_fact` memories in LanceDB are kept as-is for vector search — the people graph adds structured lookup on top.
+
+**Photo and video people tagging**: When a user sends a photo or video with a caption, an LLM call (`identifyPeopleInPhoto` in `describe-photo.ts`) resolves mentions — including indirect references like "me", "mum", nicknames — against the known people graph. The sender's person entry is annotated so "me" resolves correctly. Matched canonical names are stored as a comma-separated `subjectName` on the memory. `getMemoriesBySubject()` fetches all rows with non-null `subjectName` and filters in JS by splitting on commas, so a memory tagged `"Oscar, Nathan"` matches searches for either person.
+
+**Video memories**: Videos are handled like photos but without the vision model call. The caption is stored as the memory content (or a default description if no caption). The Telegram video `file_id` is stored in `photoFileId` (reused to avoid schema changes). The `video_memory` type distinguishes them from photos. `send_media` tool handles both photo and video sending, including mixed media groups via Telegram's `sendMediaGroup`.
+
+**Memory editing**: Memories can be edited inline in the dashboard (content, type, tags, subjectName). `PUT /api/memories/:id` calls `MemoryStore.updateMemory()` which does delete + re-insert (LanceDB has no native row update). If content changes, the vector is re-embedded; otherwise the existing vector is reused (converted from Arrow typed array via `Array.from()`).
 
 **Web dashboard**: Express runs in the same process as the bot, sharing the MemoryStore, PersonaHolder, and PeopleGraphHolder instances. React app in `web/` with its own Vite build. Types shared via `src/shared/types.ts` and a Vite alias `@shared`. Auth via optional `DASHBOARD_TOKEN` env var. Tabs: All (paginated memory list), Search (semantic vector search), People (people graph management), Stats, Settings (persona management).
 
@@ -81,11 +87,11 @@ See `.env.example`. Required: `TELEGRAM_BOT_TOKEN`, `ANTHROPIC_API_KEY`, `OPENAI
 
 Table `memories`: `id` (string), `userId` (float64), `content` (string), `type` (string), `tags` (string, comma-separated), `timestamp` (float64), `photoFileId` (string, nullable), `source` (string, nullable), `subjectName` (string, nullable), `vector` (float32[1536]).
 
-Memory types: `diary_entry`, `user_fact`, `conversation_summary`, `reflection`, `photo_memory`.
+Memory types: `diary_entry`, `user_fact`, `conversation_summary`, `reflection`, `photo_memory`, `video_memory`.
 
 Schema migration: `init()` checks for missing columns and recreates the table if needed (drops data — fine for dev).
 
-**LanceDB query limitations**: LanceDB has no native `orderBy` on its query builder. `getRecentMemories()` fetches all rows (excluding the vector column), sorts in JS, and slices — correct for the expected dataset size.
+**LanceDB query limitations**: LanceDB has no native `orderBy` on its query builder. `getRecentMemories()` fetches all rows (excluding the vector column), sorts in JS, and slices — correct for the expected dataset size. LanceDB also has no native row update, so `updateMemory()` deletes the old row and re-inserts with updated fields.
 
 ## People graph schema
 
@@ -95,7 +101,9 @@ File `data/people.json` contains a `PeopleGraph` with `people` and `relationship
 
 `Relationship`: `id` (UUID), `personId1`, `personId2`, `type` (sibling | parent | child | partner | friend | coworker | pet | other), `label`, `createdAt`. Bidirectionality handled at query time — search both sides.
 
-API routes: `GET /api/people`, `PUT /api/people/:id`, `POST /api/people/:id/merge`, `DELETE /api/people/:id`, `POST /api/people/relationships`, `DELETE /api/people/relationships/:id`.
+Memory API routes: `GET /api/memories`, `GET /api/memories/search`, `GET /api/memories/by-subject`, `GET /api/memories/date-range`, `GET /api/memories/stats`, `PUT /api/memories/:id`, `DELETE /api/memories/:id`.
+
+People API routes: `GET /api/people`, `PUT /api/people/:id`, `POST /api/people/:id/merge`, `DELETE /api/people/:id`, `POST /api/people/relationships`, `DELETE /api/people/relationships/:id`.
 
 ## Remaining backlog
 
