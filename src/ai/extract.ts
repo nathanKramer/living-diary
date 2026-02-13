@@ -197,6 +197,7 @@ export async function extractAndStoreMemories(
   userName?: string,
   peopleHolder?: PeopleGraphHolder,
   coreMemoryHolder?: CoreMemoryHolder,
+  savedNotes?: string[],
 ): Promise<void> {
   // Only extract if there's enough conversation to work with
   if (recentMessages.length < 2) return;
@@ -240,7 +241,11 @@ export async function extractAndStoreMemories(
     ? `\n\nKnown people:\n${peopleContext}`
     : "";
 
-  const extractionPrompt = `${contextBlock}${peopleBlock}${userNameBlock}\n\nNew message from user:\n${conversationText}`;
+  const notesBlock = savedNotes && savedNotes.length > 0
+    ? `\n\nNotes already saved during this conversation (do NOT re-extract these as memories):\n${savedNotes.map((n) => `- ${n}`).join("\n")}`
+    : "";
+
+  const extractionPrompt = `${contextBlock}${peopleBlock}${notesBlock}${userNameBlock}\n\nNew message from user:\n${conversationText}`;
 
   const { text } = await generateText({
     model: anthropic(config.aiModel),

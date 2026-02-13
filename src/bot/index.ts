@@ -645,6 +645,9 @@ export function createBot(memory: MemoryStore, personaHolder: PersonaHolder, peo
       await ctx.reply(response);
 
       // Extract and store memories in the background (don't block the reply)
+      const savedNotes = toolCalls
+        .filter((tc) => tc.toolName === "save_note")
+        .map((tc) => String(tc.args.content));
       extractAndStoreMemories(
         ctx.session.recentMessages,
         memory,
@@ -652,6 +655,7 @@ export function createBot(memory: MemoryStore, personaHolder: PersonaHolder, peo
         ctx.from.first_name,
         peopleHolder,
         coreMemoryHolder,
+        savedNotes,
       ).catch((err) => console.error("Memory extraction failed:", err));
     } catch (err) {
       console.error("AI generation failed:", err);
