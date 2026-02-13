@@ -6,3 +6,5 @@ data/
 web/node_modules/
 web/dist/
 .claude/settings.local.json
+
+.DS_Store
