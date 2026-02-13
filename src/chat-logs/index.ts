@@ -3,13 +3,17 @@ import { join } from "node:path";
 
 const CHAT_LOGS_DIR = join("data", "chat-logs");
 
-interface LogEntry {
+export interface LogEntry {
   role: "user" | "assistant" | "tool";
   content: string;
   timestamp: number;
   toolName?: string;
   toolArgs?: Record<string, unknown>;
   toolResult?: string;
+}
+
+function buildLogLine(entry: LogEntry): string {
+  return JSON.stringify(entry) + "\n";
 }
 
 export function appendLog(
@@ -24,11 +28,21 @@ export function appendLog(
   if (toolName) entry.toolName = toolName;
   if (toolArgs) entry.toolArgs = toolArgs;
   if (toolResult) entry.toolResult = toolResult;
-  const line = JSON.stringify(entry) + "\n";
   const filePath = join(CHAT_LOGS_DIR, `${userId}.jsonl`);
 
   mkdir(CHAT_LOGS_DIR, { recursive: true })
-    .then(() => appendFile(filePath, line, "utf-8"))
+    .then(() => appendFile(filePath, buildLogLine(entry), "utf-8"))
+    .catch((err) => console.error(`Failed to append chat log for user ${userId}:`, err));
+}
+
+/** Write multiple log entries in a single atomic append to guarantee ordering. */
+export function appendLogs(userId: number, entries: LogEntry[]): void {
+  if (entries.length === 0) return;
+  const data = entries.map(buildLogLine).join("");
+  const filePath = join(CHAT_LOGS_DIR, `${userId}.jsonl`);
+
+  mkdir(CHAT_LOGS_DIR, { recursive: true })
+    .then(() => appendFile(filePath, data, "utf-8"))
     .catch((err) => console.error(`Failed to append chat log for user ${userId}:`, err));
 }
 

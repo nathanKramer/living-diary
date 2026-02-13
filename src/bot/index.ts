@@ -12,7 +12,8 @@ import type { AllowlistHolder } from "../allowlist/index.js";
 import type { CoreMemoryHolder } from "../core-memories/index.js";
 import type { NotesHolder } from "../notes/index.js";
 import { type TimezoneHolder, isValidTimezone } from "../timezones/index.js";
-import { appendLog, readRecentLogs } from "../chat-logs/index.js";
+import { appendLog, appendLogs, readRecentLogs } from "../chat-logs/index.js";
+import type { LogEntry } from "../chat-logs/index.js";
 
 const pendingDeletes = new Map<number, string[]>();
 
@@ -625,15 +626,21 @@ export function createBot(memory: MemoryStore, personaHolder: PersonaHolder, peo
         timezoneHolder.get(userId),
       );
 
-      // Log tool calls
-      for (const tc of toolCalls) {
-        const argsSummary = JSON.stringify(tc.args);
-        appendLog(userId, "tool", argsSummary, tc.toolName, tc.args, tc.result);
-      }
+      // Log tool calls + assistant response in a single write to guarantee ordering
+      const now = Date.now();
+      const logEntries: LogEntry[] = toolCalls.map((tc) => ({
+        role: "tool" as const,
+        content: JSON.stringify(tc.args),
+        timestamp: now,
+        toolName: tc.toolName,
+        toolArgs: tc.args,
+        toolResult: tc.result,
+      }));
+      logEntries.push({ role: "assistant", content: response, timestamp: now });
+      appendLogs(userId, logEntries);
 
       // Store assistant response in short-term memory
       ctx.session.recentMessages.push({ role: "assistant", content: response });
-      appendLog(userId, "assistant", response);
 
       await ctx.reply(response);
 
