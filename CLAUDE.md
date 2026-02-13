@@ -25,9 +25,10 @@ src/
   core-memories/index.ts # CoreMemoryHolder — bot's self-knowledge (name, identity facts)
   chat-logs/index.ts    # appendLog() + readRecentLogs() — JSONL chat persistence per user
   notes/index.ts        # NotesHolder — agent self-reminders (JSON-backed, injected into system prompt)
+  timezones/index.ts    # TimezoneHolder — per-user IANA timezone storage for date context
   ai/
     index.ts            # generateDiaryResponse() — tool-calling LLM with 8 memory tools
-    system-prompt.ts    # Base prompt + core memories + notes + persona layering, injects today's date
+    system-prompt.ts    # Base prompt + core memories + notes + persona layering, injects today's date/day in user's timezone
     extract.ts          # Background memory extraction from user messages
     configure.ts        # /configure — generates persona from user description
     describe-photo.ts   # Claude vision — describes photos; LLM people identification for media captions
@@ -81,7 +82,7 @@ web/                    # React dashboard (Vite, separate package.json)
 
 **Notes to self**: Agent self-reminders stored in `data/notes.json`. `NotesHolder` follows the same holder pattern as `CoreMemoryHolder`. Notes are injected into the system prompt (after core memories, before persona) so the bot always sees its reminders. Two tools: `save_note` creates a reminder, `complete_note` removes it after acting on it. Notes are exclusively for agent-internal use (e.g. "wish Simon happy birthday on Feb 17th"), not for storing user memories. Max 50 notes enforced. Each note includes its creation date and UUID in the prompt so the bot can judge relevance and complete by ID.
 
-**Chat log persistence**: All chat messages (user and assistant) are persisted to JSONL files at `data/chat-logs/{userId}.jsonl`. Each line is `{"role","content","timestamp"}`. `appendLog()` is fire-and-forget (no await). On bot restart, when a user's session is empty, hydration middleware loads the last 20 messages from their log file via `readRecentLogs()`. This preserves conversational context across restarts. Photo/video handlers log the synthetic session text (e.g. `[User sent a photo with caption: "..."]`) and the bot's reply.
+**Chat log persistence**: All chat messages (user, assistant, and tool calls) are persisted to JSONL files at `data/chat-logs/{userId}.jsonl`. Each line is `{"role","content","timestamp"}` with optional `toolName` and `toolArgs` fields for tool calls. `appendLog()` is fire-and-forget (no await). Tool calls are logged with role `"tool"` — the content is a human-readable summary like `search_memories({"query":"..."}) → result`. On bot restart, session hydration via `readRecentLogs()` filters out tool entries (only user/assistant messages are loaded into the session). The Chats dashboard tab renders tool calls as compact centered badges between chat bubbles.
 
 **Web dashboard**: Express runs in the same process as the bot, sharing the MemoryStore, PersonaHolder, PeopleGraphHolder, and CoreMemoryHolder instances. React app in `web/` with its own Vite build. Types shared via `src/shared/types.ts` and a Vite alias `@shared`. Auth via optional `DASHBOARD_TOKEN` env var. Tabs: All (paginated memory list), Search (semantic vector search), People (people graph management), Stats, Settings (core memories + persona management).
 

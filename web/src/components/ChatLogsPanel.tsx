@@ -8,9 +8,10 @@ interface ChatUser {
 }
 
 interface ChatMessage {
-  role: "user" | "assistant";
+  role: "user" | "assistant" | "tool";
   content: string;
   timestamp: number;
+  toolName?: string;
 }
 
 function formatTime(ts: number): string {
@@ -77,14 +78,23 @@ export function ChatLogsPanel() {
         );
       }
 
-      elements.push(
-        <div key={i} className={`chat-bubble-row ${msg.role}`}>
-          <div>
-            <div className="chat-bubble">{msg.content}</div>
-            <div className="chat-bubble-time">{formatTime(msg.timestamp)}</div>
-          </div>
-        </div>,
-      );
+      if (msg.role === "tool") {
+        elements.push(
+          <div key={i} className="chat-tool-call">
+            <span className="chat-tool-name">{msg.toolName ?? "tool"}</span>
+            <span className="chat-tool-detail">{msg.content}</span>
+          </div>,
+        );
+      } else {
+        elements.push(
+          <div key={i} className={`chat-bubble-row ${msg.role}`}>
+            <div>
+              <div className="chat-bubble">{msg.content}</div>
+              <div className="chat-bubble-time">{formatTime(msg.timestamp)}</div>
+            </div>
+          </div>,
+        );
+      }
     }
 
     return elements;

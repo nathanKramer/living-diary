@@ -4,13 +4,23 @@ import { join } from "node:path";
 const CHAT_LOGS_DIR = join("data", "chat-logs");
 
 interface LogEntry {
-  role: "user" | "assistant";
+  role: "user" | "assistant" | "tool";
   content: string;
   timestamp: number;
+  toolName?: string;
+  toolArgs?: Record<string, unknown>;
 }
 
-export function appendLog(userId: number, role: "user" | "assistant", content: string): void {
+export function appendLog(
+  userId: number,
+  role: "user" | "assistant" | "tool",
+  content: string,
+  toolName?: string,
+  toolArgs?: Record<string, unknown>,
+): void {
   const entry: LogEntry = { role, content, timestamp: Date.now() };
+  if (toolName) entry.toolName = toolName;
+  if (toolArgs) entry.toolArgs = toolArgs;
   const line = JSON.stringify(entry) + "\n";
   const filePath = join(CHAT_LOGS_DIR, `${userId}.jsonl`);
 
@@ -38,7 +48,10 @@ export async function readRecentLogs(
   for (const line of lines) {
     try {
       const parsed = JSON.parse(line) as LogEntry;
-      entries.push({ role: parsed.role, content: parsed.content });
+      // Only hydrate user/assistant messages into the session, not tool calls
+      if (parsed.role === "user" || parsed.role === "assistant") {
+        entries.push({ role: parsed.role, content: parsed.content });
+      }
     } catch {
       // Skip malformed lines
     }
@@ -65,10 +78,18 @@ export async function listChatLogUserIds(): Promise<number[]> {
   return userIds;
 }
 
+export interface ChatLogEntry {
+  role: "user" | "assistant" | "tool";
+  content: string;
+  timestamp: number;
+  toolName?: string;
+  toolArgs?: Record<string, unknown>;
+}
+
 export async function readLogs(
   userId: number,
   limit: number,
-): Promise<Array<{ role: "user" | "assistant"; content: string; timestamp: number }>> {
+): Promise<ChatLogEntry[]> {
   const filePath = join(CHAT_LOGS_DIR, `${userId}.jsonl`);
 
   let raw: string;
@@ -79,12 +100,15 @@ export async function readLogs(
   }
 
   const lines = raw.trim().split("\n").filter(Boolean);
-  const entries: Array<{ role: "user" | "assistant"; content: string; timestamp: number }> = [];
+  const entries: ChatLogEntry[] = [];
 
   for (const line of lines) {
     try {
       const parsed = JSON.parse(line) as LogEntry;
-      entries.push({ role: parsed.role, content: parsed.content, timestamp: parsed.timestamp });
+      const entry: ChatLogEntry = { role: parsed.role, content: parsed.content, timestamp: parsed.timestamp };
+      if (parsed.toolName) entry.toolName = parsed.toolName;
+      if (parsed.toolArgs) entry.toolArgs = parsed.toolArgs;
+      entries.push(entry);
     } catch {
       // Skip malformed lines
     }

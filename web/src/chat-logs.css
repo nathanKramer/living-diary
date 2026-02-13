@@ -128,3 +128,32 @@
 .chat-bubble-row.assistant .chat-bubble-time {
   text-align: left;
 }
+
+/* Tool call */
+.chat-tool-call {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  justify-content: center;
+  padding: 0.25rem 0;
+  animation: fadeInUp 0.2s ease-out;
+}
+
+.chat-tool-name {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: white;
+  background: #A89585;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.chat-tool-detail {
+  font-size: 0.7rem;
+  color: #A89585;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 70%;
+}

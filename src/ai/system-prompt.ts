@@ -39,13 +39,18 @@ export function buildSystemPrompt(
   memoryContext?: string,
   coreMemoryContext?: string,
   notesContext?: string,
+  timezone?: string,
 ): string {
-  const today = new Date().toISOString().split("T")[0];
+  const now = new Date();
+  const opts: Intl.DateTimeFormatOptions = { weekday: "long", year: "numeric", month: "2-digit", day: "2-digit" };
+  if (timezone) opts.timeZone = timezone;
+  const formatted = now.toLocaleDateString("en-CA", opts); // en-CA gives YYYY-MM-DD
+  // formatted is like "Monday, 2026-02-13"
   const persona = personaAddition ?? DEFAULT_PERSONA;
   const coreMemory = coreMemoryContext ? `\n\n${coreMemoryContext}` : "";
   const notes = notesContext ? `\n\n${notesContext}` : "";
   const memory = memoryContext
     ? `\n\n## What you currently remember\n${memoryContext}`
     : "";
-  return `${BASE_PROMPT}\n\nToday's date: ${today}${coreMemory}${notes}\n\n${persona}${memory}`;
+  return `${BASE_PROMPT}\n\nToday is ${formatted}${coreMemory}${notes}\n\n${persona}${memory}`;
 }

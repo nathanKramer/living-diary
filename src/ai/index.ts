@@ -29,6 +29,17 @@ function buildMessages(
   }));
 }
 
+export interface ToolCallLog {
+  toolName: string;
+  args: Record<string, unknown>;
+  result: string;
+}
+
+export interface DiaryResponse {
+  text: string;
+  toolCalls: ToolCallLog[];
+}
+
 export async function generateDiaryResponse(
   recentMessages: Array<{ role: "user" | "assistant"; content: string }>,
   memory: MemoryStore,
@@ -38,7 +49,8 @@ export async function generateDiaryResponse(
   sendMedia?: (items: Array<{ fileId: string; type: "photo" | "video"; caption?: string }>) => Promise<void>,
   coreMemoryHolder?: CoreMemoryHolder,
   notesHolder?: NotesHolder,
-): Promise<string> {
+  timezone?: string,
+): Promise<DiaryResponse> {
   const messages = buildMessages(recentMessages);
 
   // Always provide memory context so the bot feels like it remembers
@@ -75,9 +87,9 @@ export async function generateDiaryResponse(
 
   const coreMemoryContext = coreMemoryHolder?.formatForPrompt();
   const notesContext = notesHolder?.formatForPrompt();
-  const systemPrompt = buildSystemPrompt(persona, memoryContext, coreMemoryContext, notesContext);
+  const systemPrompt = buildSystemPrompt(persona, memoryContext, coreMemoryContext, notesContext, timezone);
   
-  const { text } = await generateText({
+  const { text, steps } = await generateText({
     model: anthropic(config.aiModel),
     system: systemPrompt,
     messages,
@@ -208,5 +220,17 @@ export async function generateDiaryResponse(
     stopWhen: stepCountIs(5),
   });
 
-  return text;
+  // Extract tool call logs from all steps
+  const toolCallLogs: ToolCallLog[] = [];
+  for (const step of steps) {
+    for (const result of step.toolResults) {
+      toolCallLogs.push({
+        toolName: result.toolName,
+        args: result.input as Record<string, unknown>,
+        result: String(result.output),
+      });
+    }
+  }
+
+  return { text, toolCalls: toolCallLogs };
 }

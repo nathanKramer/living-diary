@@ -6,6 +6,7 @@ import { loadPeopleGraph, PeopleGraphHolder } from "./people/index.js";
 import { loadAllowlist, AllowlistHolder } from "./allowlist/index.js";
 import { loadCoreMemories, CoreMemoryHolder } from "./core-memories/index.js";
 import { loadNotes, NotesHolder } from "./notes/index.js";
+import { loadTimezones, TimezoneHolder } from "./timezones/index.js";
 import { startServer } from "./server/index.js";
 
 async function main() {
@@ -41,6 +42,10 @@ async function main() {
   const notesHolder = new NotesHolder(notesData);
   console.log(`Notes loaded: ${notesData.notes.length} notes`);
 
+  const timezoneData = await loadTimezones();
+  const timezoneHolder = new TimezoneHolder(timezoneData);
+  console.log(`Timezones loaded: ${Object.keys(timezoneData).length} users`);
+
   // Load allowlist and seed from env
   const allowlistData = await loadAllowlist();
   const allowlistHolder = new AllowlistHolder(allowlistData);
@@ -53,7 +58,7 @@ async function main() {
   // Start web dashboard
   startServer(memory, personaHolder, peopleHolder, coreMemoryHolder, notesHolder);
 
-  const bot = createBot(memory, personaHolder, peopleHolder, allowlistHolder, coreMemoryHolder, notesHolder);
+  const bot = createBot(memory, personaHolder, peopleHolder, allowlistHolder, coreMemoryHolder, notesHolder, timezoneHolder);
 
   // Graceful shutdown
   const shutdown = () => {
@@ -71,6 +76,7 @@ async function main() {
     { command: "configure", description: "Change how I behave" },
     { command: "persona", description: "Show current persona" },
     { command: "name", description: "Set or view my name" },
+    { command: "timezone", description: "Set your timezone" },
     { command: "search", description: "Search your memories" },
     { command: "stats", description: "Memory statistics" },
     { command: "export", description: "Download all your data" },

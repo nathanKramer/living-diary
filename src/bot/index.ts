@@ -11,6 +11,7 @@ import type { PeopleGraphHolder } from "../people/index.js";
 import type { AllowlistHolder } from "../allowlist/index.js";
 import type { CoreMemoryHolder } from "../core-memories/index.js";
 import type { NotesHolder } from "../notes/index.js";
+import { type TimezoneHolder, isValidTimezone } from "../timezones/index.js";
 import { appendLog, readRecentLogs } from "../chat-logs/index.js";
 
 const pendingDeletes = new Map<number, string[]>();
@@ -47,7 +48,7 @@ function initialSessionData(): SessionData {
 
 export type BotContext = Context & { session: SessionData };
 
-export function createBot(memory: MemoryStore, personaHolder: PersonaHolder, peopleHolder: PeopleGraphHolder, allowlist: AllowlistHolder, coreMemoryHolder: CoreMemoryHolder, notesHolder: NotesHolder): Bot<BotContext> {
+export function createBot(memory: MemoryStore, personaHolder: PersonaHolder, peopleHolder: PeopleGraphHolder, allowlist: AllowlistHolder, coreMemoryHolder: CoreMemoryHolder, notesHolder: NotesHolder, timezoneHolder: TimezoneHolder): Bot<BotContext> {
   const bot = new Bot<BotContext>(config.telegramBotToken);
 
   // --- Approval callback queries (registered before auth middleware) ---
@@ -164,7 +165,8 @@ export function createBot(memory: MemoryStore, personaHolder: PersonaHolder, peo
         "/delete_all — Delete everything (careful!)\n" +
         "/configure <description> — Change how I behave\n" +
         "/persona — Show current persona\n" +
-        "/name <name> — Set or view my name\n\n" +
+        "/name <name> — Set or view my name\n" +
+        "/timezone <tz> — Set your timezone (e.g. Australia/Sydney)\n\n" +
         "You can also send me photos and I'll remember them too.\n\n" +
         "Or just send me a message and we'll talk."
     );
@@ -236,6 +238,28 @@ export function createBot(memory: MemoryStore, personaHolder: PersonaHolder, peo
     coreMemoryHolder.setName(newName.trim());
     await coreMemoryHolder.save();
     await ctx.reply(`Got it! You can call me ${newName.trim()} from now on.`);
+  });
+
+  bot.command("timezone", async (ctx) => {
+    const tz = ctx.match;
+    if (!tz) {
+      const current = timezoneHolder.get(ctx.from!.id);
+      if (current) {
+        await ctx.reply(`Your timezone is set to ${current}. Use /timezone <tz> to change it.\n\nExample: /timezone Australia/Sydney`);
+      } else {
+        await ctx.reply("No timezone set (using server default). Use /timezone <tz> to set one.\n\nExample: /timezone Australia/Sydney");
+      }
+      return;
+    }
+
+    const trimmed = tz.trim();
+    if (!isValidTimezone(trimmed)) {
+      await ctx.reply(`"${trimmed}" is not a valid timezone. Use an IANA timezone like Australia/Sydney, America/New_York, or Europe/London.`);
+      return;
+    }
+
+    await timezoneHolder.set(ctx.from!.id, trimmed);
+    await ctx.reply(`Timezone set to ${trimmed}.`);
   });
 
   bot.command("search", async (ctx) => {
@@ -570,7 +594,7 @@ export function createBot(memory: MemoryStore, personaHolder: PersonaHolder, peo
     await ctx.replyWithChatAction("typing");
 
     try {
-      const response = await generateDiaryResponse(
+      const { text: response, toolCalls } = await generateDiaryResponse(
         ctx.session.recentMessages,
         memory,
         userId,
@@ -598,7 +622,15 @@ export function createBot(memory: MemoryStore, personaHolder: PersonaHolder, peo
         },
         coreMemoryHolder,
         notesHolder,
+        timezoneHolder.get(userId),
       );
+
+      // Log tool calls
+      for (const tc of toolCalls) {
+        const resultPreview = tc.result.length > 200 ? tc.result.slice(0, 200) + "..." : tc.result;
+        const summary = `${tc.toolName}(${JSON.stringify(tc.args)}) → ${resultPreview}`;
+        appendLog(userId, "tool", summary, tc.toolName, tc.args);
+      }
 
       // Store assistant response in short-term memory
       ctx.session.recentMessages.push({ role: "assistant", content: response });
