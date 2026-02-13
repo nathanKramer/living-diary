@@ -23,6 +23,7 @@ src/
   bot/index.ts          # grammY bot — allowlist gate, approval callbacks, commands, message handler
   allowlist/index.ts    # AllowlistHolder — persistent approved users + pending requests
   core-memories/index.ts # CoreMemoryHolder — bot's self-knowledge (name, identity facts)
+  chat-logs/index.ts    # appendLog() + readRecentLogs() — JSONL chat persistence per user
   ai/
     index.ts            # generateDiaryResponse() — tool-calling LLM with 6 memory tools
     system-prompt.ts    # Base prompt + core memories + persona layering, injects today's date
@@ -73,6 +74,8 @@ web/                    # React dashboard (Vite, separate package.json)
 **Video memories**: Videos are handled like photos but without the vision model call. The caption is stored as the memory content (or a default description if no caption). The Telegram video `file_id` is stored in `photoFileId` (reused to avoid schema changes). The `video_memory` type distinguishes them from photos. `send_media` tool handles both photo and video sending, including mixed media groups via Telegram's `sendMediaGroup`.
 
 **Memory editing**: Memories can be edited inline in the dashboard (content, type, tags, subjectName). `PUT /api/memories/:id` calls `MemoryStore.updateMemory()` which does delete + re-insert (LanceDB has no native row update). If content changes, the vector is re-embedded; otherwise the existing vector is reused (converted from Arrow typed array via `Array.from()`).
+
+**Chat log persistence**: All chat messages (user and assistant) are persisted to JSONL files at `data/chat-logs/{userId}.jsonl`. Each line is `{"role","content","timestamp"}`. `appendLog()` is fire-and-forget (no await). On bot restart, when a user's session is empty, hydration middleware loads the last 20 messages from their log file via `readRecentLogs()`. This preserves conversational context across restarts. Photo/video handlers log the synthetic session text (e.g. `[User sent a photo with caption: "..."]`) and the bot's reply.
 
 **Web dashboard**: Express runs in the same process as the bot, sharing the MemoryStore, PersonaHolder, PeopleGraphHolder, and CoreMemoryHolder instances. React app in `web/` with its own Vite build. Types shared via `src/shared/types.ts` and a Vite alias `@shared`. Auth via optional `DASHBOARD_TOKEN` env var. Tabs: All (paginated memory list), Search (semantic vector search), People (people graph management), Stats, Settings (core memories + persona management).
 

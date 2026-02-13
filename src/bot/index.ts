@@ -10,6 +10,7 @@ import type { Persona } from "../persona/index.js";
 import type { PeopleGraphHolder } from "../people/index.js";
 import type { AllowlistHolder } from "../allowlist/index.js";
 import type { CoreMemoryHolder } from "../core-memories/index.js";
+import { appendLog, readRecentLogs } from "../chat-logs/index.js";
 
 const pendingDeletes = new Map<number, string[]>();
 
@@ -92,6 +93,14 @@ export function createBot(memory: MemoryStore, personaHolder: PersonaHolder, peo
 
   // Session middleware for short-term memory
   bot.use(session({ initial: initialSessionData }));
+
+  // Session hydration — load chat history from disk when session is empty (e.g. after restart)
+  bot.use(async (ctx, next) => {
+    if (ctx.session.recentMessages.length === 0 && ctx.from) {
+      ctx.session.recentMessages = await readRecentLogs(ctx.from.id, 20);
+    }
+    await next();
+  });
 
   // Allowlist gate — approved users pass through, others get a pending request
   bot.use(async (ctx, next) => {
@@ -442,6 +451,7 @@ export function createBot(memory: MemoryStore, personaHolder: PersonaHolder, peo
         ? `[User sent a photo with caption: "${caption}"] AI description: ${description}`
         : `[User sent a photo] AI description: ${description}`;
       ctx.session.recentMessages.push({ role: "user", content: sessionText });
+      appendLog(userId, "user", sessionText);
 
       // Keep only last 20 turns
       const maxTurns = 20;
@@ -449,7 +459,16 @@ export function createBot(memory: MemoryStore, personaHolder: PersonaHolder, peo
         ctx.session.recentMessages = ctx.session.recentMessages.slice(-maxTurns);
       }
 
-      await ctx.reply(`Got it! Here's what I see:\n\n${description}`);
+      const photoReply = `Got it! Here's what I see:\n\n${description}`;
+      ctx.session.recentMessages.push({ role: "assistant", content: photoReply });
+      appendLog(userId, "assistant", photoReply);
+
+      // Keep only last 20 turns
+      if (ctx.session.recentMessages.length > maxTurns) {
+        ctx.session.recentMessages = ctx.session.recentMessages.slice(-maxTurns);
+      }
+
+      await ctx.reply(photoReply);
     } catch (err) {
       console.error("Photo processing failed:", err);
       await ctx.reply("Sorry, I had trouble processing that photo. Try again.");
@@ -500,6 +519,7 @@ export function createBot(memory: MemoryStore, personaHolder: PersonaHolder, peo
         ? `[User sent a video with caption: "${caption}"]`
         : `[User sent a video]`;
       ctx.session.recentMessages.push({ role: "user", content: sessionText });
+      appendLog(userId, "user", sessionText);
 
       // Keep only last 20 turns
       const maxTurns = 20;
@@ -507,7 +527,16 @@ export function createBot(memory: MemoryStore, personaHolder: PersonaHolder, peo
         ctx.session.recentMessages = ctx.session.recentMessages.slice(-maxTurns);
       }
 
-      await ctx.reply(`Got it! I've saved that video${caption ? ` with your caption.` : "."}`);
+      const videoReply = `Got it! I've saved that video${caption ? ` with your caption.` : "."}`;
+      ctx.session.recentMessages.push({ role: "assistant", content: videoReply });
+      appendLog(userId, "assistant", videoReply);
+
+      // Keep only last 20 turns
+      if (ctx.session.recentMessages.length > maxTurns) {
+        ctx.session.recentMessages = ctx.session.recentMessages.slice(-maxTurns);
+      }
+
+      await ctx.reply(videoReply);
     } catch (err) {
       console.error("Video processing failed:", err);
       await ctx.reply("Sorry, I had trouble processing that video. Try again.");
@@ -519,13 +548,16 @@ export function createBot(memory: MemoryStore, personaHolder: PersonaHolder, peo
     const userMessage = ctx.message.text;
     console.log(`Message from ${ctx.from.id}: ${userMessage}`);
 
-    if (!checkRateLimit(ctx.from.id)) {
+    const userId = ctx.from.id;
+
+    if (!checkRateLimit(userId)) {
       await ctx.reply("You've sent a lot of messages this hour. Take a breather and try again soon.");
       return;
     }
 
     // Store in session short-term memory
     ctx.session.recentMessages.push({ role: "user", content: userMessage });
+    appendLog(userId, "user", userMessage);
 
     // Keep only last 20 turns
     const maxTurns = 20;
@@ -535,8 +567,6 @@ export function createBot(memory: MemoryStore, personaHolder: PersonaHolder, peo
 
     // Show typing indicator while generating
     await ctx.replyWithChatAction("typing");
-
-    const userId = ctx.from.id;
 
     try {
       const response = await generateDiaryResponse(
@@ -570,6 +600,7 @@ export function createBot(memory: MemoryStore, personaHolder: PersonaHolder, peo
 
       // Store assistant response in short-term memory
       ctx.session.recentMessages.push({ role: "assistant", content: response });
+      appendLog(userId, "assistant", response);
 
       await ctx.reply(response);
 
