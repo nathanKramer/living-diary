@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { Memory, MemoryType } from "@shared/types";
-import { api } from "../api";
+import { api, getToken } from "../api";
 
 const TYPE_COLORS: Record<string, string> = {
   diary_entry: "#4a9eff",
@@ -199,6 +199,12 @@ export function MemoryCard({ memory, onDelete, onUpdate }: Props) {
           ))}
         </div>
       )}
+      {memory.photoFileId && memory.type === "photo_memory" && (
+        <PhotoPreview fileId={memory.photoFileId} />
+      )}
+      {memory.photoFileId && memory.type === "video_memory" && (
+        <span className="photo-indicator">has video</span>
+      )}
       {memory.source && (
         <button className="source-toggle" onClick={() => setShowSource(!showSource)}>
           {showSource ? "Hide original" : "Show original"}
@@ -207,11 +213,35 @@ export function MemoryCard({ memory, onDelete, onUpdate }: Props) {
       {showSource && memory.source && (
         <p className="memory-source">{memory.source}</p>
       )}
-      {memory.photoFileId && (
-        <span className="photo-indicator">
-          {memory.type === "video_memory" ? "has video" : "has photo"}
-        </span>
-      )}
     </div>
   );
+}
+
+function PhotoPreview({ fileId }: { fileId: string }) {
+  const [src, setSrc] = useState<string | null>(null);
+
+  useEffect(() => {
+    let revoke: string | null = null;
+    const token = getToken();
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+
+    fetch(`/api/media/${fileId}`, { headers })
+      .then((res) => {
+        if (!res.ok) throw new Error(`${res.status}`);
+        return res.blob();
+      })
+      .then((blob) => {
+        revoke = URL.createObjectURL(blob);
+        setSrc(revoke);
+      })
+      .catch(() => setSrc(null));
+
+    return () => {
+      if (revoke) URL.revokeObjectURL(revoke);
+    };
+  }, [fileId]);
+
+  if (!src) return null;
+  return <img className="memory-photo" src={src} alt="Photo memory" />;
 }

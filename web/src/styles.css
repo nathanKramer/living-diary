@@ -290,10 +290,18 @@ nav a.active {
   border-color: #3b82f6;
 }
 
+.memory-photo {
+  display: block;
+  margin-top: 0.75rem;
+  max-width: 300px;
+  height: auto;
+  border-radius: 8px;
+  border: 1px solid #334155;
+}
+
 .photo-indicator {
-  display: inline-block;
+  display: block;
   margin-top: 0.5rem;
-  margin-left: 0.5rem;
   font-size: 0.75rem;
   color: #f59e0b;
 }
