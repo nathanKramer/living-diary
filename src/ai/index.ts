@@ -28,7 +28,7 @@ export async function generateDiaryResponse(
   userId: number,
   persona?: string,
   peopleHolder?: PeopleGraphHolder,
-  sendPhoto?: (fileId: string, caption?: string) => Promise<void>,
+  sendPhotos?: (photos: Array<{ fileId: string; caption?: string }>) => Promise<void>,
 ): Promise<string> {
   const messages = buildMessages(recentMessages);
 
@@ -125,17 +125,20 @@ export async function generateDiaryResponse(
           return results.map(formatMemory).join("\n");
         },
       }),
-      send_photo: tool({
+      send_photos: tool({
         description:
-          "Send a stored photo back to the user. Use this when a photo memory appears in search results (indicated by [photoId:...]) and the user wants to see it. Extract the photoId from the search result.",
+          "Send one or more stored photos to the user as an album. Use this when photo memories appear in search results (indicated by [photoId:...]) and the user wants to see them. Collect all relevant photoIds and send them in a single call.",
         inputSchema: z.object({
-          photoFileId: z.string().describe("The Telegram file ID from the [photoId:...] tag in search results"),
-          caption: z.string().optional().describe("Optional caption to send with the photo"),
+          photos: z.array(z.object({
+            fileId: z.string().describe("The Telegram file ID from the [photoId:...] tag in search results"),
+            caption: z.string().optional().describe("Optional caption for this photo"),
+          })).min(1).describe("The photos to send"),
         }),
-        execute: async ({ photoFileId, caption }) => {
-          if (!sendPhoto) return "Photo sending is not available in this context.";
-          await sendPhoto(photoFileId, caption);
-          return "Photo sent to the user.";
+        execute: async ({ photos }) => {
+          if (!sendPhotos) return "Photo sending is not available in this context.";
+          await sendPhotos(photos);
+          const count = photos.length;
+          return `${count} photo${count === 1 ? "" : "s"} sent to the user.`;
         },
       }),
       get_person_info: tool({

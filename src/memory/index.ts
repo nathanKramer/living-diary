@@ -261,20 +261,25 @@ export class MemoryStore {
     const count = await this.table.countRows();
     if (count === 0) return [];
 
-    const escaped = names.map((n) => `'${n.replace(/'/g, "''")}'`);
-    const condition = `subjectName IN (${escaped.join(", ")})`;
-
+    // Fetch all rows with a subjectName, then filter in JS to handle
+    // comma-separated multi-person tags (e.g. "Oscar, Nathan")
     const results = await this.table
       .query()
       .select(["id", "userId", "content", "type", "tags", "timestamp", "photoFileId", "source", "subjectName"])
-      .where(condition)
+      .where("subjectName IS NOT NULL")
       .toArray();
 
-    results.sort(
+    const namesLower = new Set(names.map((n) => n.toLowerCase()));
+    const filtered = results.filter((row) => {
+      const subjects = (row.subjectName as string).split(",").map((s) => s.trim().toLowerCase());
+      return subjects.some((s) => namesLower.has(s));
+    });
+
+    filtered.sort(
       (a, b) => (b.timestamp as number) - (a.timestamp as number),
     );
 
-    return results.map((row) => ({
+    return filtered.map((row) => ({
       id: row.id as string,
       userId: row.userId as number,
       content: row.content as string,

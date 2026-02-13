@@ -4,7 +4,7 @@ import { generateDiaryResponse } from "../ai/index.js";
 import type { MemoryStore } from "../memory/index.js";
 import { extractAndStoreMemories } from "../ai/extract.js";
 import { generatePersona } from "../ai/configure.js";
-import { describePhoto } from "../ai/describe-photo.js";
+import { describePhoto, identifyPeopleInPhoto } from "../ai/describe-photo.js";
 import { savePersona, PersonaHolder } from "../persona/index.js";
 import type { Persona } from "../persona/index.js";
 import type { PeopleGraphHolder } from "../people/index.js";
@@ -397,13 +397,21 @@ export function createBot(memory: MemoryStore, personaHolder: PersonaHolder, peo
       // Get AI description of the photo
       const description = await describePhoto(imageBuffer, caption ?? undefined);
 
+      // Use LLM to identify people mentioned in the caption
+      const mentionedNames = caption
+        ? await identifyPeopleInPhoto(caption, peopleHolder.current.people, userId)
+        : [];
+      const subjectName = mentionedNames.length > 0
+        ? mentionedNames.join(", ")
+        : undefined;
+
       // Store as photo memory
       const memId = await memory.addMemory(
         description,
         "photo_memory",
         userId,
         ["photo"],
-        { photoFileId: photo.file_id, source: caption ?? undefined },
+        { photoFileId: photo.file_id, source: caption ?? undefined, subjectName },
       );
 
       if (memId) {
@@ -460,8 +468,18 @@ export function createBot(memory: MemoryStore, personaHolder: PersonaHolder, peo
         userId,
         personaHolder.current?.systemPromptAddition,
         peopleHolder,
-        async (fileId, caption) => {
-          await ctx.replyWithPhoto(fileId, caption ? { caption } : undefined);
+        async (photos) => {
+          if (photos.length === 1) {
+            await ctx.replyWithPhoto(photos[0]!.fileId, photos[0]!.caption ? { caption: photos[0]!.caption } : undefined);
+          } else {
+            await ctx.replyWithMediaGroup(
+              photos.map((p) => ({
+                type: "photo" as const,
+                media: p.fileId,
+                caption: p.caption,
+              })),
+            );
+          }
         },
       );
 
