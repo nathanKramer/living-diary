@@ -437,6 +437,64 @@ export function createBot(memory: MemoryStore, personaHolder: PersonaHolder, peo
     }
   });
 
+  // Video message handler
+  bot.on("message:video", async (ctx) => {
+    console.log(`Video from ${ctx.from.id}`);
+
+    if (!checkRateLimit(ctx.from.id)) {
+      await ctx.reply("You've sent a lot of messages this hour. Take a breather and try again soon.");
+      return;
+    }
+
+    await ctx.replyWithChatAction("typing");
+
+    const userId = ctx.from.id;
+    const caption = ctx.message.caption;
+
+    try {
+      const video = ctx.message.video;
+      const description = caption ?? "Video shared by the user";
+
+      // Use LLM to identify people mentioned in the caption
+      const mentionedNames = caption
+        ? await identifyPeopleInPhoto(caption, peopleHolder.current.people, userId)
+        : [];
+      const subjectName = mentionedNames.length > 0
+        ? mentionedNames.join(", ")
+        : undefined;
+
+      // Store as video memory
+      const memId = await memory.addMemory(
+        description,
+        "video_memory",
+        userId,
+        ["video"],
+        { photoFileId: video.file_id, source: caption ?? undefined, subjectName },
+      );
+
+      if (memId) {
+        console.log(`Stored video_memory: "${description}" (${memId})`);
+      }
+
+      // Add to session for conversational context
+      const sessionText = caption
+        ? `[User sent a video with caption: "${caption}"]`
+        : `[User sent a video]`;
+      ctx.session.recentMessages.push({ role: "user", content: sessionText });
+
+      // Keep only last 20 turns
+      const maxTurns = 20;
+      if (ctx.session.recentMessages.length > maxTurns) {
+        ctx.session.recentMessages = ctx.session.recentMessages.slice(-maxTurns);
+      }
+
+      await ctx.reply(`Got it! I've saved that video${caption ? ` with your caption.` : "."}`);
+    } catch (err) {
+      console.error("Video processing failed:", err);
+      await ctx.reply("Sorry, I had trouble processing that video. Try again.");
+    }
+  });
+
   // Main message handler
   bot.on("message:text", async (ctx) => {
     const userMessage = ctx.message.text;
@@ -468,15 +526,21 @@ export function createBot(memory: MemoryStore, personaHolder: PersonaHolder, peo
         userId,
         personaHolder.current?.systemPromptAddition,
         peopleHolder,
-        async (photos) => {
-          if (photos.length === 1) {
-            await ctx.replyWithPhoto(photos[0]!.fileId, photos[0]!.caption ? { caption: photos[0]!.caption } : undefined);
+        async (items) => {
+          if (items.length === 1) {
+            const item = items[0]!;
+            const opts = item.caption ? { caption: item.caption } : undefined;
+            if (item.type === "video") {
+              await ctx.replyWithVideo(item.fileId, opts);
+            } else {
+              await ctx.replyWithPhoto(item.fileId, opts);
+            }
           } else {
             await ctx.replyWithMediaGroup(
-              photos.map((p) => ({
-                type: "photo" as const,
-                media: p.fileId,
-                caption: p.caption,
+              items.map((item) => ({
+                type: item.type as "photo" | "video",
+                media: item.fileId,
+                caption: item.caption,
               })),
             );
           }

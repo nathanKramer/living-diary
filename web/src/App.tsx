@@ -43,6 +43,10 @@ function AllMemories() {
     }
   };
 
+  const handleUpdate = (updated: Memory) => {
+    setMemories((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
+  };
+
   return (
     <MemoryList
       memories={memories}
@@ -50,6 +54,7 @@ function AllMemories() {
       onLoadMore={() => setLimit((prev) => prev + PAGE_SIZE)}
       hasMore={memories.length >= limit}
       onDelete={handleDelete}
+      onUpdate={handleUpdate}
     />
   );
 }
@@ -81,11 +86,15 @@ function SearchPage() {
     }
   };
 
+  const handleUpdate = (updated: Memory) => {
+    setSearchResults((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
+  };
+
   return (
     <>
       <SearchBar onSearch={handleSearch} loading={searchLoading} />
       {hasSearched && (
-        <MemoryList memories={searchResults} loading={searchLoading} onDelete={handleDelete} />
+        <MemoryList memories={searchResults} loading={searchLoading} onDelete={handleDelete} onUpdate={handleUpdate} />
       )}
     </>
   );

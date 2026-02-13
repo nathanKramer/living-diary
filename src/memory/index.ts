@@ -292,6 +292,56 @@ export class MemoryStore {
     }));
   }
 
+  async updateMemory(
+    id: string,
+    updates: { content?: string; type?: MemoryType; tags?: string; subjectName?: string | null },
+  ): Promise<Memory | null> {
+    if (!this.table) throw new Error("Memory store not initialized");
+
+    // Fetch existing row (including vector)
+    const rows = await this.table
+      .query()
+      .where(`id = '${id.replace(/'/g, "''")}'`)
+      .toArray();
+
+    if (rows.length === 0) return null;
+    const row = rows[0]!;
+
+    const newContent = updates.content ?? (row.content as string);
+    const needsReEmbed = updates.content !== undefined && updates.content !== row.content;
+    const vector = needsReEmbed ? await generateEmbedding(newContent) : Array.from(row.vector as Iterable<number>);
+
+    const updated = {
+      id: row.id as string,
+      userId: row.userId as number,
+      content: newContent,
+      type: (updates.type ?? row.type) as MemoryType,
+      tags: updates.tags ?? (row.tags as string),
+      timestamp: row.timestamp as number,
+      photoFileId: (row.photoFileId as string) || null,
+      source: (row.source as string) || null,
+      subjectName: updates.subjectName !== undefined
+        ? (updates.subjectName || null)
+        : ((row.subjectName as string) || null),
+      vector,
+    };
+
+    await this.table.delete(`id = '${id.replace(/'/g, "''")}'`);
+    await this.table.add([updated]);
+
+    return {
+      id: updated.id,
+      userId: updated.userId,
+      content: updated.content,
+      type: updated.type,
+      tags: updated.tags,
+      timestamp: updated.timestamp,
+      photoFileId: updated.photoFileId || undefined,
+      source: updated.source || undefined,
+      subjectName: updated.subjectName || undefined,
+    };
+  }
+
   async deleteMemory(id: string): Promise<void> {
     if (!this.table) throw new Error("Memory store not initialized");
     await this.table.delete(`id = '${id}'`);

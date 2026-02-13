@@ -96,6 +96,33 @@ export function memoriesRouter(memory: MemoryStore): Router {
     }
   });
 
+  // PUT /api/memories/:id — update a memory
+  router.put("/:id", async (req, res) => {
+    try {
+      const { content, type, tags, subjectName } = req.body ?? {};
+      const updates: { content?: string; type?: MemoryType; tags?: string; subjectName?: string | null } = {};
+      if (content !== undefined) updates.content = String(content);
+      if (type !== undefined) updates.type = String(type) as MemoryType;
+      if (tags !== undefined) updates.tags = String(tags);
+      if (subjectName !== undefined) updates.subjectName = subjectName === "" ? null : subjectName;
+
+      if (Object.keys(updates).length === 0) {
+        res.status(400).json({ error: "No fields to update" });
+        return;
+      }
+
+      const updated = await memory.updateMemory(req.params.id, updates);
+      if (!updated) {
+        res.status(404).json({ error: "Memory not found" });
+        return;
+      }
+      res.json({ memory: updated });
+    } catch (err) {
+      console.error("API PUT /memories/:id error:", err);
+      res.status(500).json({ error: "Failed to update memory" });
+    }
+  });
+
   // DELETE /api/memories/:id — delete a single memory
   router.delete("/:id", async (req, res) => {
     try {

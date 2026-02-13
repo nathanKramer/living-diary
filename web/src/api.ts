@@ -66,6 +66,13 @@ export const api = {
 
   getStats: () => apiFetch<Stats>("/api/memories/stats"),
 
+  updateMemory: (id: string, updates: { content?: string; type?: string; tags?: string; subjectName?: string | null }) =>
+    apiFetch<{ memory: Memory }>(`/api/memories/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updates),
+    }),
+
   deleteMemory: (id: string) =>
     apiFetch<{ ok: boolean }>(`/api/memories/${id}`, { method: "DELETE" }),
 

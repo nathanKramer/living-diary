@@ -9,8 +9,13 @@ import type { PeopleGraphHolder } from "../people/index.js";
 
 function formatMemory(m: { content: string; timestamp: number; type: string; photoFileId?: string }): string {
   const date = new Date(m.timestamp).toISOString().split("T")[0];
-  const photoTag = m.photoFileId ? ` [photoId:${m.photoFileId}]` : "";
-  return `[${date}] (${m.type})${photoTag} ${m.content}`;
+  let mediaTag = "";
+  if (m.photoFileId) {
+    mediaTag = m.type === "video_memory"
+      ? ` [videoId:${m.photoFileId}]`
+      : ` [photoId:${m.photoFileId}]`;
+  }
+  return `[${date}] (${m.type})${mediaTag} ${m.content}`;
 }
 
 function buildMessages(
@@ -28,7 +33,7 @@ export async function generateDiaryResponse(
   userId: number,
   persona?: string,
   peopleHolder?: PeopleGraphHolder,
-  sendPhotos?: (photos: Array<{ fileId: string; caption?: string }>) => Promise<void>,
+  sendMedia?: (items: Array<{ fileId: string; type: "photo" | "video"; caption?: string }>) => Promise<void>,
 ): Promise<string> {
   const messages = buildMessages(recentMessages);
 
@@ -125,20 +130,21 @@ export async function generateDiaryResponse(
           return results.map(formatMemory).join("\n");
         },
       }),
-      send_photos: tool({
+      send_media: tool({
         description:
-          "Send one or more stored photos to the user as an album. Use this when photo memories appear in search results (indicated by [photoId:...]) and the user wants to see them. Collect all relevant photoIds and send them in a single call.",
+          "Send one or more stored photos/videos to the user. Use this when media memories appear in search results (indicated by [photoId:...] or [videoId:...]) and the user wants to see them. Collect all relevant media IDs and send them in a single call.",
         inputSchema: z.object({
-          photos: z.array(z.object({
-            fileId: z.string().describe("The Telegram file ID from the [photoId:...] tag in search results"),
-            caption: z.string().optional().describe("Optional caption for this photo"),
-          })).min(1).describe("The photos to send"),
+          items: z.array(z.object({
+            fileId: z.string().describe("The Telegram file ID from the [photoId:...] or [videoId:...] tag"),
+            type: z.enum(["photo", "video"]).describe("Whether this is a photo or video"),
+            caption: z.string().optional().describe("Optional caption"),
+          })).min(1).describe("The media items to send"),
         }),
-        execute: async ({ photos }) => {
-          if (!sendPhotos) return "Photo sending is not available in this context.";
-          await sendPhotos(photos);
-          const count = photos.length;
-          return `${count} photo${count === 1 ? "" : "s"} sent to the user.`;
+        execute: async ({ items }) => {
+          if (!sendMedia) return "Media sending is not available in this context.";
+          await sendMedia(items);
+          const count = items.length;
+          return `${count} item${count === 1 ? "" : "s"} sent to the user.`;
         },
       }),
       get_person_info: tool({

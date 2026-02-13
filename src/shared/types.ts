@@ -3,7 +3,8 @@ export type MemoryType =
   | "user_fact"
   | "conversation_summary"
   | "reflection"
-  | "photo_memory";
+  | "photo_memory"
+  | "video_memory";
 
 export interface Memory {
   id: string;

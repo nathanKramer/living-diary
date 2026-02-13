@@ -79,6 +79,10 @@ function usePersonData(id: string | undefined) {
     }
   };
 
+  const updateMemory = (updated: Memory) => {
+    setMemories((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
+  };
+
   return {
     person,
     people,
@@ -88,6 +92,7 @@ function usePersonData(id: string | undefined) {
     memoriesLoading,
     reload,
     deleteMemory,
+    updateMemory,
   };
 }
 
@@ -432,11 +437,13 @@ function PersonMemories({
   memories,
   loading,
   onDelete,
+  onUpdate,
 }: {
   person: Person;
   memories: Memory[];
   loading: boolean;
   onDelete: (id: string) => void;
+  onUpdate: (updated: Memory) => void;
 }) {
   return (
     <div className="person-memories-section">
@@ -448,7 +455,7 @@ function PersonMemories({
       {!loading && memories.length > 0 && (
         <div className="memory-list">
           {memories.map((m) => (
-            <MemoryCard key={m.id} memory={m} onDelete={onDelete} />
+            <MemoryCard key={m.id} memory={m} onDelete={onDelete} onUpdate={onUpdate} />
           ))}
         </div>
       )}
@@ -470,6 +477,7 @@ export function PersonDetailPage() {
     memoriesLoading,
     reload,
     deleteMemory,
+    updateMemory,
   } = usePersonData(id);
 
   if (loading) {
@@ -504,6 +512,7 @@ export function PersonDetailPage() {
         memories={memories}
         loading={memoriesLoading}
         onDelete={deleteMemory}
+        onUpdate={updateMemory}
       />
     </div>
   );
