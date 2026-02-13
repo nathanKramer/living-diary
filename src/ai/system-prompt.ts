@@ -42,10 +42,12 @@ export function buildSystemPrompt(
   timezone?: string,
 ): string {
   const now = new Date();
-  const opts: Intl.DateTimeFormatOptions = { weekday: "long", year: "numeric", month: "2-digit", day: "2-digit" };
-  if (timezone) opts.timeZone = timezone;
-  const formatted = now.toLocaleDateString("en-CA", opts); // en-CA gives YYYY-MM-DD
-  // formatted is like "Monday, 2026-02-13"
+  const dateOpts: Intl.DateTimeFormatOptions = { weekday: "long", year: "numeric", month: "2-digit", day: "2-digit" };
+  const timeOpts: Intl.DateTimeFormatOptions = { hour: "2-digit", minute: "2-digit", hour12: false };
+  if (timezone) { dateOpts.timeZone = timezone; timeOpts.timeZone = timezone; }
+  const dateStr = now.toLocaleDateString("en-CA", dateOpts); // "Monday, 2026-02-13"
+  const timeStr = now.toLocaleTimeString("en-CA", timeOpts); // "14:30"
+  const formatted = `${dateStr}, ${timeStr}`;
   const persona = personaAddition ?? DEFAULT_PERSONA;
   const coreMemory = coreMemoryContext ? `\n\n${coreMemoryContext}` : "";
   const notes = notesContext ? `\n\n${notesContext}` : "";
