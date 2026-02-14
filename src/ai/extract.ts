@@ -113,7 +113,7 @@ interface CoreUpdates {
   entries?: string[];
 }
 
-interface ExtractionResult {
+export interface ExtractionResult {
   memories: Array<{
     content: string;
     type: MemoryType;
@@ -128,7 +128,7 @@ const VALID_RELATIONSHIP_TYPES = new Set<RelationshipType>([
   "sibling", "parent", "child", "partner", "friend", "coworker", "pet", "other",
 ]);
 
-function parseExtraction(text: string): ExtractionResult {
+export function parseExtraction(text: string): ExtractionResult {
   // Strip markdown fences if the model adds them despite instructions
   const cleaned = text.replace(/^```(?:json)?\s*/m, "").replace(/\s*```$/m, "").trim();
 
