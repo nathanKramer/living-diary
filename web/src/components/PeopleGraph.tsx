@@ -14,21 +14,23 @@ import { zoom as d3Zoom } from "d3-zoom";
 import { drag as d3Drag } from "d3-drag";
 import type { Person, Relationship } from "@shared/types";
 
-const REL_COLORS: Record<string, string> = {
-  sibling: "#3b82f6",
-  parent: "#8b5cf6",
-  child: "#8b5cf6",
-  partner: "#ec4899",
-  friend: "#10b981",
-  coworker: "#f59e0b",
-  pet: "#f97316",
-  other: "#6b7280",
+const GROUP_COLORS: Record<string, string> = {
+  sibling: "#F6C87A",
+  parent: "#C9A0DC",
+  child: "#C9A0DC",
+  partner: "#F2919B",
+  friend: "#82C99A",
+  coworker: "#E8C94A",
+  pet: "#F0A870",
+  other: "#D4C0AE",
 };
 
 interface GraphNode extends SimulationNodeDatum {
   id: string;
   name: string;
   person: Person;
+  color: string;
+  radius: number;
 }
 
 interface GraphLink extends SimulationLinkDatum<GraphNode> {
@@ -73,10 +75,22 @@ export function PeopleGraph({ people, relationships, onSelectPerson }: Props) {
 
   // Force simulation
   useEffect(() => {
+    // Build a map of each person's primary relationship type (for coloring)
+    const relTypeMap = new Map<string, string>();
+    const connectionCount = new Map<string, number>();
+    for (const r of relationships) {
+      if (!relTypeMap.has(r.personId1)) relTypeMap.set(r.personId1, r.type);
+      if (!relTypeMap.has(r.personId2)) relTypeMap.set(r.personId2, r.type);
+      connectionCount.set(r.personId1, (connectionCount.get(r.personId1) ?? 0) + 1);
+      connectionCount.set(r.personId2, (connectionCount.get(r.personId2) ?? 0) + 1);
+    }
+
     const graphNodes: GraphNode[] = people.map((p) => ({
       id: p.id,
       name: p.name,
       person: p,
+      color: GROUP_COLORS[relTypeMap.get(p.id) ?? "other"] ?? "#FEECD2",
+      radius: Math.min(30, 16 + (connectionCount.get(p.id) ?? 0) * 3),
     }));
 
     const nodeIds = new Set(graphNodes.map((n) => n.id));
@@ -207,26 +221,16 @@ export function PeopleGraph({ people, relationships, onSelectPerson }: Props) {
             const target = link.target as GraphNode;
             if (source.x == null || source.y == null || target.x == null || target.y == null) return null;
             return (
-              <g key={link.id}>
-                <line
-                  x1={source.x}
-                  y1={source.y}
-                  x2={target.x}
-                  y2={target.y}
-                  stroke={REL_COLORS[link.type] ?? "#6b7280"}
-                  strokeWidth={2}
-                  strokeOpacity={0.6}
-                />
-                <text
-                  x={(source.x + target.x) / 2}
-                  y={(source.y + target.y) / 2}
-                  className="graph-link-label"
-                  dy={-6}
-                  textAnchor="middle"
-                >
-                  {link.label}
-                </text>
-              </g>
+              <line
+                key={link.id}
+                x1={source.x}
+                y1={source.y}
+                x2={target.x}
+                y2={target.y}
+                stroke="#D4A56A"
+                strokeWidth={2}
+                strokeOpacity={0.7}
+              />
             );
           })}
 
@@ -239,9 +243,14 @@ export function PeopleGraph({ people, relationships, onSelectPerson }: Props) {
                 className="graph-node"
                 transform={`translate(${node.x},${node.y})`}
                 onClick={(e) => handleNodeClick(e, node.id)}
+                style={{ cursor: "grab" }}
               >
-                <circle r={20} />
-                <text dy={32} textAnchor="middle" className="graph-node-label">
+                <circle r={node.radius} fill={node.color} stroke="#fff" strokeWidth={2} />
+                <text
+                  dy={node.radius + 14}
+                  textAnchor="middle"
+                  className="graph-node-label"
+                >
                   {node.name}
                 </text>
               </g>

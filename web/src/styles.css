@@ -1249,29 +1249,17 @@ nav a.active {
 }
 
 .graph-node circle {
-  fill: #FFF3E8;
-  stroke: #F5A623;
-  stroke-width: 2;
-  cursor: pointer;
-  transition: fill 0.15s;
+  transition: r 0.2s ease;
 }
 
 .graph-node:hover circle {
-  fill: #F0E6DA;
-  stroke: #E8950F;
+  filter: brightness(0.95);
 }
 
 .graph-node-label {
-  fill: #4A3728;
-  font-size: 11px;
-  font-weight: 600;
-  pointer-events: none;
-  user-select: none;
-}
-
-.graph-link-label {
-  fill: #A89585;
-  font-size: 9px;
+  fill: #6B5E54;
+  font-family: "Caveat", cursive;
+  font-size: 18px;
   pointer-events: none;
   user-select: none;
 }
@@ -1292,8 +1280,9 @@ nav a.active {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: #FFF3E8;
-  border: 2px solid #F5A623;
+  background: #FEECD2;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgba(74,55,40,0.1);
 }
 
 /* Core memories */
