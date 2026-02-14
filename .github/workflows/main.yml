@@ -21,7 +21,10 @@ jobs:
         key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
         script: |
           # Commands to run on the DigitalOcean Droplet
+          export NVM_DIR="$HOME/.nvm"
+          [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
           cd /root/agents/kramer-diary-agent
           git pull origin main # Pull the latest code from GitHub
+          pnpm install
           pnpm build
           pm2 restart kramer-diary-agent
