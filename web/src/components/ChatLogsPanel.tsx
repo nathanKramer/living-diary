@@ -92,35 +92,57 @@ export function ChatLogsPanel() {
 
       if (msg.role === "tool") {
         const isExpanded = expandedTools.has(i);
-        const hasDetail = Boolean(msg.toolArgs || msg.toolResult);
-        elements.push(
-          <div key={i} className="chat-tool-call">
-            <div
-              className={`chat-tool-header${hasDetail ? " expandable" : ""}`}
-              onClick={hasDetail ? () => toggleToolExpand(i) : undefined}
-            >
-              <span className="chat-tool-name">{msg.toolName ?? "tool"}</span>
-              <span className="chat-tool-args">{msg.content}</span>
-              {hasDetail && <span className="chat-tool-chevron">{isExpanded ? "\u25B2" : "\u25BC"}</span>}
-            </div>
-            {isExpanded && (
-              <div className="chat-tool-body">
-                {msg.toolArgs && (
-                  <div className="chat-tool-section">
-                    <div className="chat-tool-section-label">Args</div>
-                    <pre className="chat-tool-pre">{JSON.stringify(msg.toolArgs, null, 2)}</pre>
-                  </div>
-                )}
-                {msg.toolResult && (
-                  <div className="chat-tool-section">
-                    <div className="chat-tool-section-label">Result</div>
-                    <pre className="chat-tool-pre">{msg.toolResult}</pre>
-                  </div>
-                )}
+
+        if (msg.toolName === "conversation_summary") {
+          elements.push(
+            <div key={i} className="chat-tool-call">
+              <div
+                className="chat-tool-header expandable"
+                onClick={() => toggleToolExpand(i)}
+              >
+                <span className="chat-tool-name summary">conversation summary</span>
+                <span className="chat-tool-chevron">{isExpanded ? "\u25B2" : "\u25BC"}</span>
               </div>
-            )}
-          </div>,
-        );
+              {isExpanded && (
+                <div className="chat-tool-body">
+                  <div className="chat-tool-section">
+                    <pre className="chat-tool-pre">{msg.content}</pre>
+                  </div>
+                </div>
+              )}
+            </div>,
+          );
+        } else {
+          const hasDetail = Boolean(msg.toolArgs || msg.toolResult);
+          elements.push(
+            <div key={i} className="chat-tool-call">
+              <div
+                className={`chat-tool-header${hasDetail ? " expandable" : ""}`}
+                onClick={hasDetail ? () => toggleToolExpand(i) : undefined}
+              >
+                <span className="chat-tool-name">{msg.toolName ?? "tool"}</span>
+                <span className="chat-tool-args">{msg.content}</span>
+                {hasDetail && <span className="chat-tool-chevron">{isExpanded ? "\u25B2" : "\u25BC"}</span>}
+              </div>
+              {isExpanded && (
+                <div className="chat-tool-body">
+                  {msg.toolArgs && (
+                    <div className="chat-tool-section">
+                      <div className="chat-tool-section-label">Args</div>
+                      <pre className="chat-tool-pre">{JSON.stringify(msg.toolArgs, null, 2)}</pre>
+                    </div>
+                  )}
+                  {msg.toolResult && (
+                    <div className="chat-tool-section">
+                      <div className="chat-tool-section-label">Result</div>
+                      <pre className="chat-tool-pre">{msg.toolResult}</pre>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>,
+          );
+        }
       } else {
         elements.push(
           <div key={i} className={`chat-bubble-row ${msg.role}`}>

@@ -165,6 +165,10 @@
   white-space: nowrap;
 }
 
+.chat-tool-name.summary {
+  background: #8B9E85;
+}
+
 .chat-tool-args {
   font-size: 0.7rem;
   color: #A89585;

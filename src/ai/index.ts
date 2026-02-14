@@ -54,15 +54,22 @@ export async function generateDiaryResponse(
   const messages = buildMessages(recentMessages);
 
   // Always provide memory context so the bot feels like it remembers
-  const [userFacts, recentMemories] = await Promise.all([
+  // Over-fetch so we still get 10 after filtering out redundant entries
+  const [userFacts, recentMemoriesRaw] = await Promise.all([
     memory.getUserFacts(userId),
-    memory.getRecentMemories(10),
+    memory.getRecentMemories(30),
   ]);
+
+  // Filter out user_facts and conversation_summaries for the current user —
+  // user_facts are already in "Known facts" and summaries duplicate the session window
+  const recentMemories = recentMemoriesRaw
+    .filter((m) => !((m.type === "user_fact" || m.type === "conversation_summary") && m.userId === userId))
+    .slice(0, 10);
 
   const contextParts: string[] = [];
   if (userFacts.length > 0) {
     contextParts.push(
-      "### Known facts about this user\n" +
+      "### Known facts\n" +
         userFacts.map((m) => {
           const prefix = m.subjectName ? `[${m.subjectName}] ` : "";
           return `- ${prefix}${m.content}`;
@@ -143,7 +150,10 @@ export async function generateDiaryResponse(
           limit: z.number().optional().default(10).describe("How many recent memories to fetch"),
         }),
         execute: async ({ limit }) => {
-          const results = await memory.getRecentMemories(limit);
+          const raw = await memory.getRecentMemories(limit * 3);
+          const results = raw
+            .filter((m) => !((m.type === "user_fact" || m.type === "conversation_summary") && m.userId === userId))
+            .slice(0, limit);
           if (results.length === 0) return "No memories stored yet.";
           return results.map(formatMemory).join("\n");
         },
