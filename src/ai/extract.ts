@@ -190,6 +190,12 @@ function parseExtraction(text: string): ExtractionResult {
   }
 }
 
+export interface ExtractionSummary {
+  memories: string[];
+  people: string[];
+  core: string[];
+}
+
 export async function extractAndStoreMemories(
   recentMessages: Array<{ role: "user" | "assistant"; content: string }>,
   memory: MemoryStore,
@@ -198,16 +204,16 @@ export async function extractAndStoreMemories(
   peopleHolder?: PeopleGraphHolder,
   coreMemoryHolder?: CoreMemoryHolder,
   savedNotes?: string[],
-): Promise<void> {
+): Promise<ExtractionSummary | null> {
   // Only extract if there's enough conversation to work with
-  if (recentMessages.length < 2) return;
+  if (recentMessages.length < 2) return null;
 
   // Only extract from the most recent user message — older messages
   // were already extracted when they were sent
   const userMessages = recentMessages.filter((m) => m.role === "user");
   const lastMessage = userMessages[userMessages.length - 1];
 
-  if (!lastMessage) return;
+  if (!lastMessage) return null;
 
   const conversationText = lastMessage.content;
 
@@ -259,7 +265,9 @@ export async function extractAndStoreMemories(
   const hasPeopleUpdates = result.people_updates && result.people_updates.length > 0;
   const hasCoreUpdates = result.core_updates !== undefined;
 
-  if (!hasMemories && !hasPeopleUpdates && !hasCoreUpdates) return;
+  if (!hasMemories && !hasPeopleUpdates && !hasCoreUpdates) return null;
+
+  const summary: ExtractionSummary = { memories: [], people: [], core: [] };
 
   // Store each extracted memory (addMemory handles dedup via vector similarity)
   for (const mem of result.memories) {
@@ -268,6 +276,8 @@ export async function extractAndStoreMemories(
       subjectName: mem.subject || undefined,
     });
     if (id) {
+      const label = mem.subject ? `[${mem.subject}] ` : "";
+      summary.memories.push(`${label}(${mem.type}) ${mem.content}`);
       console.log(`Stored ${mem.type}${mem.subject ? ` [${mem.subject}]` : ""}: "${mem.content}" (${id})`);
     }
   }
@@ -307,6 +317,7 @@ export async function extractAndStoreMemories(
         }
       }
 
+      summary.people.push(person.name);
       console.log(`People update: ${person.name} (${person.id})`);
     }
 
@@ -318,16 +329,20 @@ export async function extractAndStoreMemories(
     const cu = result.core_updates!;
     if (cu.name) {
       coreMemoryHolder.setName(cu.name);
+      summary.core.push(`name → "${cu.name}"`);
       console.log(`Core memory: name set to "${cu.name}"`);
     }
     if (cu.entries) {
       for (const entry of cu.entries) {
         const added = coreMemoryHolder.addEntry(entry);
         if (added) {
+          summary.core.push(entry);
           console.log(`Core memory: added "${entry}"`);
         }
       }
     }
     await coreMemoryHolder.save();
   }
+
+  return summary;
 }

@@ -656,7 +656,26 @@ export function createBot(memory: MemoryStore, personaHolder: PersonaHolder, peo
         peopleHolder,
         coreMemoryHolder,
         savedNotes,
-      ).catch((err) => console.error("Memory extraction failed:", err));
+      ).then((summary) => {
+        if (!summary) return;
+        const counts: string[] = [];
+        if (summary.memories.length > 0) counts.push(`${summary.memories.length} memor${summary.memories.length === 1 ? "y" : "ies"}`);
+        if (summary.people.length > 0) counts.push(`${summary.people.length} people`);
+        if (summary.core.length > 0) counts.push(`${summary.core.length} core`);
+        if (counts.length > 0) {
+          const detail: string[] = [];
+          if (summary.memories.length > 0) {
+            detail.push("Memories:", ...summary.memories.map((m) => `  ${m}`));
+          }
+          if (summary.people.length > 0) {
+            detail.push("People:", ...summary.people.map((p) => `  ${p}`));
+          }
+          if (summary.core.length > 0) {
+            detail.push("Core:", ...summary.core.map((c) => `  ${c}`));
+          }
+          appendLog(userId, "tool", counts.join(", "), "extraction", undefined, detail.join("\n"));
+        }
+      }).catch((err) => console.error("Memory extraction failed:", err));
     } catch (err) {
       console.error("AI generation failed:", err);
       await ctx.reply(
