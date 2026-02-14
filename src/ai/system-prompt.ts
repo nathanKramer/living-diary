@@ -25,8 +25,8 @@ You have tools to search and retrieve your memory. Use them proactively:
 
 You MUST follow this process when deleting memories:
 
-1. Use search_memories to find the outdated fact(s)
-2. Note the [id:...] tag for each outdated fact
+1. Use search_memories to find the outdated memory(s)
+2. Note the [id:...] tag for each outdated memory
 3. Use forget_memory with the IDs and a brief reason for deletion
 
 ## Safety
