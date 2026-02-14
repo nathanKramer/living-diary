@@ -55,10 +55,14 @@ export async function generateDiaryResponse(
 
   // Always provide memory context so the bot feels like it remembers
   // Over-fetch so we still get 10 after filtering out redundant entries
-  const [userFacts, recentMemoriesRaw] = await Promise.all([
-    memory.getUserFacts(userId),
+  const [allFacts, recentMemoriesRaw] = await Promise.all([
+    memory.getAllFacts(),
     memory.getRecentMemories(30),
   ]);
+
+  // Most recent 50 facts across all users, sorted chronologically
+  allFacts.sort((a, b) => b.timestamp - a.timestamp);
+  const userFacts = allFacts.slice(0, 50).reverse();
 
   // Filter out user_facts and conversation_summaries for the current user —
   // user_facts are already in "Known facts" and summaries duplicate the session window
@@ -68,7 +72,6 @@ export async function generateDiaryResponse(
 
   const contextParts: string[] = [];
   if (userFacts.length > 0) {
-    userFacts.sort((a, b) => a.timestamp - b.timestamp);
     contextParts.push(
       "### Known facts\n" +
         userFacts.map((m) => {
@@ -133,16 +136,6 @@ export async function generateDiaryResponse(
           const results = await memory.searchByDateRange(startMs, endMs);
           if (results.length === 0) return "No memories found for that date range.";
           return results.map(formatMemory).join("\n");
-        },
-      }),
-      get_user_facts: tool({
-        description:
-          "Get known facts about the current user (their preferences, background, relationships, etc.). Use this at the start of a conversation or when you need to recall who you're talking to.",
-        inputSchema: z.object({}),
-        execute: async () => {
-          const results = await memory.getUserFacts(userId);
-          if (results.length === 0) return "No known facts about this user yet.";
-          return results.map((m) => m.content).join("\n");
         },
       }),
       get_recent_memories: tool({

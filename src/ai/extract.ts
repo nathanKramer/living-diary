@@ -222,11 +222,12 @@ export async function extractAndStoreMemories(
 
   const conversationText = lastMessage.content;
 
-  // Fetch relevant context: all user facts + semantically related memories
-  const [userFacts, related] = await Promise.all([
-    memory.getUserFacts(userId),
+  // Fetch relevant context: all facts + semantically related memories
+  const [allFacts, related] = await Promise.all([
+    memory.getAllFacts(),
     memory.searchMemories(conversationText, 5),
   ]);
+  const userFacts = allFacts;
 
   // Deduplicate (a related memory might also be a user fact)
   const seen = new Set<string>();

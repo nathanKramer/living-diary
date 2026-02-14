@@ -229,7 +229,7 @@ export class MemoryStore {
     }));
   }
 
-  async getUserFacts(userId: number): Promise<Memory[]> {
+  async getAllFacts(): Promise<Memory[]> {
     if (!this.table) throw new Error("Memory store not initialized");
 
     const count = await this.table.countRows();
@@ -238,7 +238,7 @@ export class MemoryStore {
     const results = await this.table
       .query()
       .select(["id", "userId", "content", "type", "tags", "timestamp", "photoFileId", "source", "subjectName"])
-      .where(`type = 'user_fact' AND userId = ${userId}`)
+      .where(`type = 'user_fact'`)
       .toArray();
 
     return results.map((row) => ({
