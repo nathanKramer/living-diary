@@ -68,11 +68,13 @@ export async function generateDiaryResponse(
 
   const contextParts: string[] = [];
   if (userFacts.length > 0) {
+    userFacts.sort((a, b) => a.timestamp - b.timestamp);
     contextParts.push(
       "### Known facts\n" +
         userFacts.map((m) => {
+          const date = new Date(m.timestamp).toISOString().split("T")[0];
           const prefix = m.subjectName ? `[${m.subjectName}] ` : "";
-          return `- ${prefix}${m.content}`;
+          return `- (${date}) ${prefix}${m.content}`;
         }).join("\n"),
     );
   }
