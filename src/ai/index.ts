@@ -62,7 +62,7 @@ export async function generateDiaryResponse(
   const contextParts: string[] = [];
   if (userFacts.length > 0) {
     contextParts.push(
-      "### Known facts\n" +
+      "### Known facts about this user\n" +
         userFacts.map((m) => {
           const prefix = m.subjectName ? `[${m.subjectName}] ` : "";
           return `- ${prefix}${m.content}`;
