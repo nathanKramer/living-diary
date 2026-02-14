@@ -362,3 +362,65 @@ export async function extractAndStoreMemories(
 
   return summary;
 }
+
+const SUMMARY_PROMPT = `You are a conversation summarizer for a personal diary app. Given a recent conversation between a user and their diary companion, write a concise summary capturing the essence of what was discussed.
+
+Focus on:
+- The main topics and themes
+- Key decisions or conclusions reached
+- Emotional tone and notable context
+- Any stories or events shared across multiple messages
+
+Do NOT list discrete facts (those are extracted separately). Instead, capture the narrative arc — what this conversation was about as a whole.
+
+Write 1-2 sentences in third person past tense, as if writing a diary log entry. Include the date context provided.
+
+Return ONLY the summary text, no JSON, no markdown fences.`;
+
+export async function generateConversationSummary(
+  recentMessages: Array<{ role: "user" | "assistant"; content: string }>,
+  memory: MemoryStore,
+  userId: number,
+  timezone?: string,
+  userName?: string,
+): Promise<string | null> {
+  if (recentMessages.length < 4) return null;
+
+  const tz = timezone ?? "UTC";
+  const now = new Date();
+  const dateStr = now.toLocaleDateString("en-US", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    timeZone: tz,
+  });
+
+  const conversationText = recentMessages
+    .map((m) => `${m.role === "user" ? "User" : "Diary"}: ${m.content}`)
+    .join("\n\n");
+
+  const userNameHint = userName ? `The user's name is ${userName}. ` : "";
+  const prompt = `${userNameHint}Today is ${dateStr}.\n\nConversation:\n${conversationText}`;
+
+  const { text } = await generateText({
+    model: anthropic(config.aiModel),
+    system: SUMMARY_PROMPT,
+    prompt,
+  });
+
+  const summary = text.trim();
+  if (!summary || summary.length < 10) return null;
+
+  const tags = ["conversation-summary"];
+  const id = await memory.addMemory(summary, "conversation_summary", userId, tags, {
+    subjectName: userName,
+  });
+
+  if (id) {
+    console.log(`Stored conversation_summary: "${summary}" (${id})`);
+    return summary;
+  }
+
+  return null;
+}

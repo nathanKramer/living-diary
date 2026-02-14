@@ -2,7 +2,7 @@ import { Bot, Context, InputFile, InlineKeyboard, session } from "grammy";
 import { config } from "../config.js";
 import { generateDiaryResponse } from "../ai/index.js";
 import type { MemoryStore } from "../memory/index.js";
-import { extractAndStoreMemories } from "../ai/extract.js";
+import { extractAndStoreMemories, generateConversationSummary } from "../ai/extract.js";
 import { generatePersona } from "../ai/configure.js";
 import { describePhoto, identifyPeopleInPhoto } from "../ai/describe-photo.js";
 import { savePersona, PersonaHolder } from "../persona/index.js";
@@ -41,10 +41,12 @@ function checkRateLimit(userId: number): boolean {
 export interface SessionData {
   /** Recent conversation turns for short-term context */
   recentMessages: Array<{ role: "user" | "assistant"; content: string }>;
+  /** Counter for triggering periodic conversation summaries */
+  messagesSinceLastSummary: number;
 }
 
 function initialSessionData(): SessionData {
-  return { recentMessages: [] };
+  return { recentMessages: [], messagesSinceLastSummary: 0 };
 }
 
 export type BotContext = Context & { session: SessionData };
@@ -676,6 +678,19 @@ export function createBot(memory: MemoryStore, personaHolder: PersonaHolder, peo
           appendLog(userId, "tool", counts.join(", "), "extraction", undefined, detail.join("\n"));
         }
       }).catch((err) => console.error("Memory extraction failed:", err));
+
+      // Periodic conversation summary — every 10 user messages
+      ctx.session.messagesSinceLastSummary = (ctx.session.messagesSinceLastSummary || 0) + 1;
+      if (ctx.session.messagesSinceLastSummary >= 10) {
+        ctx.session.messagesSinceLastSummary = 0;
+        generateConversationSummary(
+          ctx.session.recentMessages, memory, userId, timezoneHolder.get(userId), ctx.from.first_name,
+        ).then((summary) => {
+          if (summary) {
+            appendLog(userId, "tool", summary, "conversation_summary");
+          }
+        }).catch((err) => console.error("Conversation summary failed:", err));
+      }
     } catch (err) {
       console.error("AI generation failed:", err);
       await ctx.reply(
