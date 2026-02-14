@@ -1,0 +1,27 @@
+name: Deploy to DigitalOcean Droplet
+
+on:
+  push:
+    branches:
+      - main # Triggers on pushes to the main branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Deploy to Droplet
+      uses: appleboy/ssh-action@v0.1.3 # Action to run commands over SSH
+      with:
+        host: ${{ secrets.DROPLET_IP }}
+        username: root # e.g., root or a deployer user
+        key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+        script: |
+          # Commands to run on the DigitalOcean Droplet
+          cd /root/agents/kramer-diary-agent
+          git pull origin main # Pull the latest code from GitHub
+          pnpm build
+          pm2 restart kramer-diary-agent
