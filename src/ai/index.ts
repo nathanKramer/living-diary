@@ -9,15 +9,16 @@ import type { PeopleGraphHolder } from "../people/index.js";
 import type { CoreMemoryHolder } from "../core-memories/index.js";
 import type { NotesHolder } from "../notes/index.js";
 
-function formatMemory(m: { content: string; timestamp: number; type: string; photoFileId?: string }): string {
+function formatMemory(m: { id?: string; content: string; timestamp: number; type: string; photoFileId?: string }): string {
   const date = new Date(m.timestamp).toISOString().split("T")[0];
+  const idTag = m.id ? ` [id:${m.id}]` : "";
   let mediaTag = "";
   if (m.photoFileId) {
     mediaTag = m.type === "video_memory"
       ? ` [videoId:${m.photoFileId}]`
       : ` [photoId:${m.photoFileId}]`;
   }
-  return `[${date}] (${m.type})${mediaTag} ${m.content}`;
+  return `[${date}] (${m.type})${idTag}${mediaTag} ${m.content}`;
 }
 
 function buildMessages(
@@ -219,6 +220,21 @@ export async function generateDiaryResponse(
           if (!removed) return "Note not found — it may have already been completed.";
           await notesHolder.save();
           return "Note completed and removed.";
+        },
+      }),
+      forget_memory: tool({
+        description:
+          "Delete outdated or incorrect memories by their IDs. Use this when you notice a stored fact contradicts what the user just told you (e.g. old job, old city, corrected detail). First use search_memories to find the outdated memory and note its [id:...] tag, then pass the specific ID(s) here.",
+        inputSchema: z.object({
+          memory_ids: z.array(z.string()).min(1).describe("The IDs of memories to delete (from [id:...] tags in search results)"),
+          reason: z.string().describe("Brief reason for deletion (e.g. 'user corrected: now works at Google')"),
+        }),
+        execute: async ({ memory_ids, reason }) => {
+          for (const id of memory_ids) {
+            await memory.deleteMemory(id);
+          }
+          console.log(`forget_memory: deleted ${memory_ids.length} — ${reason}`);
+          return `Deleted ${memory_ids.length} ${memory_ids.length === 1 ? "memory" : "memories"}.`;
         },
       }),
     },
