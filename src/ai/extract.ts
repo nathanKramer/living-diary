@@ -20,7 +20,8 @@ Return a JSON object with this exact shape:
   ],
   "people_updates": [
     {
-      "name": "string — the person's primary name",
+      "name": "string — the person's name as currently known (must match an existing known person if updating)",
+      "rename": "string | undefined — set this to update the person's display name (e.g. from 'John' to 'John Doe'). The old name becomes an alias automatically.",
       "aliases": ["string — nicknames or alternate names, e.g. 'Mum'"],
       "bio_snippet": "string — a very brief label, max 50 characters (e.g. 'Nathan's cat', 'software engineer')",
       "relationships": [
@@ -64,6 +65,8 @@ When the user mentions people (including pets), extract structured information a
 - Only include people_updates when there's genuinely new information about people or relationships
 - If no people info is mentioned, omit the "people_updates" field or set it to []
 
+**Updating existing people**: When the user provides new info about someone already known (listed in "Known people" context), use their EXISTING name in the "name" field so the system can match them. If the user reveals a fuller or corrected name (e.g. "John's full name is John Doe"), set "rename" to the new name — the old name will be kept as an alias automatically. Do NOT create a new person when updating an existing one.
+
 ## Core updates
 
 If the user names you or tells you something about yourself (e.g. "your name is Luna", "you belong to the Kramer family", "I made you for our family"), extract it in the "core_updates" object:
@@ -95,6 +98,7 @@ Return ONLY the JSON object, no markdown fences, no explanation.`;
 
 interface PeopleUpdate {
   name: string;
+  rename?: string;
   aliases?: string[];
   bio_snippet?: string;
   relationships?: Array<{
@@ -151,6 +155,7 @@ function parseExtraction(text: string): ExtractionResult {
         (p) => typeof p.name === "string" && p.name.length > 0,
       ).map((p) => ({
         name: p.name,
+        rename: typeof p.rename === "string" && p.rename.length > 0 ? p.rename : undefined,
         aliases: Array.isArray(p.aliases) ? p.aliases.filter((a) => typeof a === "string") : undefined,
         bio_snippet: typeof p.bio_snippet === "string" ? p.bio_snippet : undefined,
         relationships: Array.isArray(p.relationships)
@@ -286,6 +291,17 @@ export async function extractAndStoreMemories(
   if (hasPeopleUpdates && peopleHolder) {
     for (const update of result.people_updates!) {
       const person = peopleHolder.findOrCreatePerson(update.name);
+
+      // Rename: update display name and keep old name as alias
+      if (update.rename && update.rename.toLowerCase() !== person.name.toLowerCase()) {
+        const oldName = person.name;
+        person.name = update.rename;
+        // Add old name as alias if not already present
+        if (!person.aliases.some((a) => a.toLowerCase() === oldName.toLowerCase())) {
+          person.aliases.push(oldName);
+        }
+        console.log(`People rename: "${oldName}" → "${update.rename}"`);
+      }
 
       // Merge aliases
       if (update.aliases && update.aliases.length > 0) {
