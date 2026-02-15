@@ -657,6 +657,7 @@ export function createBot(memory: MemoryStore, personaHolder: PersonaHolder, peo
         coreMemoryHolder,
         notesHolder,
         timezoneHolder.get(userId),
+        timezoneHolder,
       );
 
       // Log tool calls + assistant response in a single write to guarantee ordering

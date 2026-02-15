@@ -8,6 +8,8 @@ import type { MemoryStore } from "../memory/index.js";
 import type { PeopleGraphHolder } from "../people/index.js";
 import type { CoreMemoryHolder } from "../core-memories/index.js";
 import type { NotesHolder } from "../notes/index.js";
+import type { TimezoneHolder } from "../timezones/index.js";
+import { isValidTimezone } from "../timezones/index.js";
 
 function formatMemory(m: { id?: string; content: string; timestamp: number; type: string; photoFileId?: string }): string {
   const date = new Date(m.timestamp).toISOString().split("T")[0];
@@ -51,6 +53,7 @@ export async function generateDiaryResponse(
   coreMemoryHolder?: CoreMemoryHolder,
   notesHolder?: NotesHolder,
   timezone?: string,
+  timezoneHolder?: TimezoneHolder,
 ): Promise<DiaryResponse> {
   const messages = buildMessages(recentMessages);
 
@@ -235,6 +238,19 @@ export async function generateDiaryResponse(
           }
           console.log(`forget_memory: deleted ${memory_ids.length} — ${reason}`);
           return `Deleted ${memory_ids.length} ${memory_ids.length === 1 ? "memory" : "memories"}.`;
+        },
+      }),
+      set_timezone: tool({
+        description:
+          "Set the user's timezone. Use this when the user asks to change their timezone. You must resolve their request to a valid IANA timezone identifier (e.g. 'Pacific/Auckland' for New Zealand, 'America/New_York' for US East Coast, 'Europe/London' for UK).",
+        inputSchema: z.object({
+          timezone: z.string().describe("A valid IANA timezone identifier (e.g. 'Pacific/Auckland', 'America/New_York', 'Europe/London')"),
+        }),
+        execute: async ({ timezone: tz }) => {
+          if (!timezoneHolder) return "Timezone setting is not available.";
+          if (!isValidTimezone(tz)) return `"${tz}" is not a valid IANA timezone identifier.`;
+          await timezoneHolder.set(userId, tz);
+          return `Timezone set to ${tz}.`;
         },
       }),
     },
