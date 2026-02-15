@@ -596,16 +596,68 @@ export function createBot(memory: MemoryStore, personaHolder: PersonaHolder, peo
         ctx.session.recentMessages = ctx.session.recentMessages.slice(-maxTurns);
       }
 
-      const videoReply = `Got it! I've saved that video${caption ? ` with your caption.` : "."}`;
-      ctx.session.recentMessages.push({ role: "assistant", content: videoReply });
-      appendLog(userId, "assistant", videoReply);
+      if (caption) {
+        // Generate a natural conversational reply informed by the caption
+        const { text: videoReply, toolCalls } = await generateDiaryResponse(
+          ctx.session.recentMessages,
+          memory,
+          userId,
+          personaHolder.current?.systemPromptAddition,
+          peopleHolder,
+          async (items) => {
+            if (items.length === 1) {
+              const item = items[0]!;
+              const opts = item.caption ? { caption: item.caption } : undefined;
+              if (item.type === "video") {
+                await ctx.replyWithVideo(item.fileId, opts);
+              } else {
+                await ctx.replyWithPhoto(item.fileId, opts);
+              }
+            } else {
+              await ctx.replyWithMediaGroup(
+                items.map((item) => ({
+                  type: item.type as "photo" | "video",
+                  media: item.fileId,
+                  caption: item.caption,
+                })),
+              );
+            }
+          },
+          coreMemoryHolder,
+          notesHolder,
+          timezoneHolder.get(userId),
+        );
 
-      // Keep only last 20 turns
-      if (ctx.session.recentMessages.length > maxTurns) {
-        ctx.session.recentMessages = ctx.session.recentMessages.slice(-maxTurns);
+        const now = Date.now();
+        const logEntries: LogEntry[] = toolCalls.map((tc) => ({
+          role: "tool" as const,
+          content: JSON.stringify(tc.args),
+          timestamp: now,
+          toolName: tc.toolName,
+          toolArgs: tc.args,
+          toolResult: tc.result,
+        }));
+        logEntries.push({ role: "assistant", content: videoReply, timestamp: now });
+        appendLogs(userId, logEntries);
+
+        ctx.session.recentMessages.push({ role: "assistant", content: videoReply });
+
+        if (ctx.session.recentMessages.length > maxTurns) {
+          ctx.session.recentMessages = ctx.session.recentMessages.slice(-maxTurns);
+        }
+
+        await ctx.reply(videoReply);
+      } else {
+        const videoReply = "Got it! I've saved that video.";
+        ctx.session.recentMessages.push({ role: "assistant", content: videoReply });
+        appendLog(userId, "assistant", videoReply);
+
+        if (ctx.session.recentMessages.length > maxTurns) {
+          ctx.session.recentMessages = ctx.session.recentMessages.slice(-maxTurns);
+        }
+
+        await ctx.reply(videoReply);
       }
-
-      await ctx.reply(videoReply);
     } catch (err) {
       console.error("Video processing failed:", err);
       await ctx.reply("Sorry, I had trouble processing that video. Try again.");
