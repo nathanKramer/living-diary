@@ -255,3 +255,19 @@ export async function generateDiaryResponse(
 
   return { text, toolCalls: toolCallLogs };
 }
+
+const MEDIA_REPLY_PROMPT = `You are a personal diary companion responding to a photo or video the user just shared. Be extremely concise — one short sentence at most. React naturally to what you see or what they said, like a friend would. No descriptions, no questions, no filler. Just a brief warm acknowledgment.`;
+
+export async function generateMediaReply(
+  recentMessages: Array<{ role: "user" | "assistant"; content: string }>,
+): Promise<string> {
+  const messages = buildMessages(recentMessages);
+
+  const { text } = await generateText({
+    model: anthropic(config.aiModel),
+    system: MEDIA_REPLY_PROMPT,
+    messages,
+  });
+
+  return text;
+}
