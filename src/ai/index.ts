@@ -256,7 +256,11 @@ export async function generateDiaryResponse(
   return { text, toolCalls: toolCallLogs };
 }
 
-const MEDIA_REPLY_PROMPT = `You are a personal diary companion responding to a photo or video the user just shared. Be extremely concise — one short sentence at most. React naturally to what you see or what they said, like a friend would. No descriptions, no questions, no filler. Just a brief warm acknowledgment.`;
+const MEDIA_REPLY_PROMPT = `You are a personal diary companion responding to a photo or video the user just shared.
+
+MANDATORY: Your reply must be extremely concise — one short sentence, maximum 10-15 words. This is non-negotiable regardless of how long previous messages in the conversation are. Do not match the length or style of prior messages.
+
+React naturally like a friend would. No descriptions of the photo, no follow-up questions, no filler. Just a brief warm acknowledgment.`;
 
 export async function generateMediaReply(
   recentMessages: Array<{ role: "user" | "assistant"; content: string }>,
