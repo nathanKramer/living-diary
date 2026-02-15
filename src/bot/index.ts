@@ -598,9 +598,25 @@ export function createBot(memory: MemoryStore, personaHolder: PersonaHolder, peo
       return;
     }
 
+    // Detect first-time user — no prior conversation history
+    const isFirstMessage = ctx.session.recentMessages.length === 0;
+
     // Store in session short-term memory
     ctx.session.recentMessages.push({ role: "user", content: userMessage });
     appendLog(userId, "user", userMessage);
+
+    // If first message, inject a system hint so the LLM welcomes them naturally
+    if (isFirstMessage) {
+      const person = peopleHolder.findPersonByTelegramId(userId)
+        ?? peopleHolder.findPersonByName(ctx.from.first_name);
+      const personContext = person
+        ? `This is ${person.name}'s very first message to you. You already know about them from other conversations${person.bio ? ` (${person.bio})` : ""}. Greet them warmly — you've been looking forward to hearing from them.`
+        : `This is a brand new user messaging you for the first time. Their name is ${ctx.from.first_name}. Welcome them warmly.`;
+      ctx.session.recentMessages.unshift({
+        role: "user",
+        content: `[System: ${personContext}]`,
+      });
+    }
 
     // Keep only last 20 turns
     const maxTurns = 20;
