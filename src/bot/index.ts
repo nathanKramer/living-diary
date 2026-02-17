@@ -356,13 +356,56 @@ export function createBot(memory: MemoryStore, personaHolder: PersonaHolder, peo
     await ctx.replyWithChatAction("typing");
 
     try {
-      const all = await memory.exportAll();
-      const json = JSON.stringify(all, null, 2);
+      const allMemories = await memory.exportAll();
+      const graph = peopleHolder.current;
+
+      const exportData = {
+        people: graph.people.map((p) => {
+          const entry: Record<string, unknown> = {
+            name: p.name,
+            aliases: p.aliases,
+            bio: p.bio,
+          };
+          if (p.telegramUserId) entry.telegram_user_id = String(p.telegramUserId);
+          return entry;
+        }),
+        relationships: graph.relationships.map((r) => {
+          const p1 = graph.people.find((p) => p.id === r.personId1);
+          const p2 = graph.people.find((p) => p.id === r.personId2);
+          return {
+            person_1: p1?.name ?? r.personId1,
+            person_2: p2?.name ?? r.personId2,
+            type: r.type,
+            label: r.label,
+          };
+        }),
+        memories: allMemories.map((m) => {
+          const entry: Record<string, unknown> = {
+            content: m.content,
+            type: m.type,
+            tags: m.tags,
+            source: m.source ?? null,
+            subject_name: m.subjectName ?? null,
+            telegram_user_id: String(m.userId),
+            inserted_at: new Date(m.timestamp).toISOString(),
+          };
+          if (m.photoFileId) entry.photo_file_id = m.photoFileId;
+          return entry;
+        }),
+      };
+
+      const json = JSON.stringify(exportData, null, 2);
       const buffer = Buffer.from(json, "utf-8");
+
+      const counts = [
+        `${exportData.memories.length} memories`,
+        `${exportData.people.length} people`,
+        `${exportData.relationships.length} relationships`,
+      ].join(", ");
 
       await ctx.replyWithDocument(
         new InputFile(buffer, "living-diary-export.json"),
-        { caption: `Exported ${all.length} memories.` },
+        { caption: `Exported ${counts}.` },
       );
     } catch (err) {
       console.error("Export failed:", err);
