@@ -125,12 +125,22 @@ export interface ExtractionResult {
 }
 
 const VALID_RELATIONSHIP_TYPES = new Set<RelationshipType>([
-  "sibling", "parent", "child", "partner", "friend", "coworker", "pet", "other",
+  "sibling",
+  "parent",
+  "child",
+  "partner",
+  "friend",
+  "coworker",
+  "pet",
+  "other",
 ]);
 
 export function parseExtraction(text: string): ExtractionResult {
   // Strip markdown fences if the model adds them despite instructions
-  const cleaned = text.replace(/^```(?:json)?\s*/m, "").replace(/\s*```$/m, "").trim();
+  const cleaned = text
+    .replace(/^```(?:json)?\s*/m, "")
+    .replace(/\s*```$/m, "")
+    .trim();
 
   try {
     const parsed = JSON.parse(cleaned) as ExtractionResult;
@@ -144,30 +154,41 @@ export function parseExtraction(text: string): ExtractionResult {
       (m) =>
         typeof m.content === "string" &&
         m.content.length > 0 &&
-        (m.type === "diary_entry" || m.type === "user_fact" || m.type === "photo_memory") &&
+        (m.type === "diary_entry" ||
+          m.type === "user_fact" ||
+          m.type === "photo_memory") &&
         Array.isArray(m.tags),
     );
 
     // Validate people_updates if present
     let people_updates: PeopleUpdate[] | undefined;
-    if (Array.isArray(parsed.people_updates) && parsed.people_updates.length > 0) {
-      people_updates = parsed.people_updates.filter(
-        (p) => typeof p.name === "string" && p.name.length > 0,
-      ).map((p) => ({
-        name: p.name,
-        rename: typeof p.rename === "string" && p.rename.length > 0 ? p.rename : undefined,
-        aliases: Array.isArray(p.aliases) ? p.aliases.filter((a) => typeof a === "string") : undefined,
-        bio_snippet: typeof p.bio_snippet === "string" ? p.bio_snippet : undefined,
-        relationships: Array.isArray(p.relationships)
-          ? p.relationships.filter(
-              (r) =>
-                typeof r.related_to === "string" &&
-                r.related_to.length > 0 &&
-                VALID_RELATIONSHIP_TYPES.has(r.type) &&
-                typeof r.label === "string",
-            )
-          : undefined,
-      }));
+    if (
+      Array.isArray(parsed.people_updates) &&
+      parsed.people_updates.length > 0
+    ) {
+      people_updates = parsed.people_updates
+        .filter((p) => typeof p.name === "string" && p.name.length > 0)
+        .map((p) => ({
+          name: p.name,
+          rename:
+            typeof p.rename === "string" && p.rename.length > 0
+              ? p.rename
+              : undefined,
+          aliases: Array.isArray(p.aliases)
+            ? p.aliases.filter((a) => typeof a === "string")
+            : undefined,
+          bio_snippet:
+            typeof p.bio_snippet === "string" ? p.bio_snippet : undefined,
+          relationships: Array.isArray(p.relationships)
+            ? p.relationships.filter(
+                (r) =>
+                  typeof r.related_to === "string" &&
+                  r.related_to.length > 0 &&
+                  VALID_RELATIONSHIP_TYPES.has(r.type) &&
+                  typeof r.label === "string",
+              )
+            : undefined,
+        }));
       if (people_updates.length === 0) people_updates = undefined;
     }
 
@@ -180,9 +201,17 @@ export function parseExtraction(text: string): ExtractionResult {
       if (hasName || hasEntries) {
         core_updates = {
           name: hasName ? cu.name : undefined,
-          entries: hasEntries ? cu.entries!.filter((e: unknown) => typeof e === "string" && (e as string).length > 0) : undefined,
+          entries: hasEntries
+            ? cu.entries!.filter(
+                (e: unknown) =>
+                  typeof e === "string" && (e as string).length > 0,
+              )
+            : undefined,
         };
-        if (!core_updates.name && (!core_updates.entries || core_updates.entries.length === 0)) {
+        if (
+          !core_updates.name &&
+          (!core_updates.entries || core_updates.entries.length === 0)
+        ) {
           core_updates = undefined;
         }
       }
@@ -239,9 +268,10 @@ export async function extractAndStoreMemories(
     }
   }
 
-  const contextBlock = contextMemories.length > 0
-    ? `\n\nExisting memories:\n${contextMemories.join("\n")}`
-    : "";
+  const contextBlock =
+    contextMemories.length > 0
+      ? `\n\nExisting memories:\n${contextMemories.join("\n")}`
+      : "";
 
   const userNameBlock = userName
     ? `\n\nThe user's display name (from their profile) is "${userName}". Use this for the "subject" field when extracting facts about the user. This is NOT a stored memory — if the user explicitly shares their name, still extract it as a user_fact.`
@@ -253,9 +283,10 @@ export async function extractAndStoreMemories(
     ? `\n\nKnown people:\n${peopleContext}`
     : "";
 
-  const notesBlock = savedNotes && savedNotes.length > 0
-    ? `\n\nNotes already saved during this conversation (do NOT re-extract these as memories):\n${savedNotes.map((n) => `- ${n}`).join("\n")}`
-    : "";
+  const notesBlock =
+    savedNotes && savedNotes.length > 0
+      ? `\n\nNotes already saved during this conversation (do NOT re-extract these as memories):\n${savedNotes.map((n) => `- ${n}`).join("\n")}`
+      : "";
 
   const extractionPrompt = `${contextBlock}${peopleBlock}${notesBlock}${userNameBlock}\n\nNew message from user:\n${conversationText}`;
 
@@ -268,7 +299,8 @@ export async function extractAndStoreMemories(
   const result = parseExtraction(text);
 
   const hasMemories = result.memories.length > 0;
-  const hasPeopleUpdates = result.people_updates && result.people_updates.length > 0;
+  const hasPeopleUpdates =
+    result.people_updates && result.people_updates.length > 0;
   const hasCoreUpdates = result.core_updates !== undefined;
 
   if (!hasMemories && !hasPeopleUpdates && !hasCoreUpdates) return null;
@@ -284,7 +316,9 @@ export async function extractAndStoreMemories(
     if (id) {
       const label = mem.subject ? `[${mem.subject}] ` : "";
       summary.memories.push(`${label}(${mem.type}) ${mem.content}`);
-      console.log(`Stored ${mem.type}${mem.subject ? ` [${mem.subject}]` : ""}: "${mem.content}" (${id})`);
+      console.log(
+        `Stored ${mem.type}${mem.subject ? ` [${mem.subject}]` : ""}: "${mem.content}" (${id})`,
+      );
     }
   }
 
@@ -294,11 +328,16 @@ export async function extractAndStoreMemories(
       const person = peopleHolder.findOrCreatePerson(update.name);
 
       // Rename: update display name and keep old name as alias
-      if (update.rename && update.rename.toLowerCase() !== person.name.toLowerCase()) {
+      if (
+        update.rename &&
+        update.rename.toLowerCase() !== person.name.toLowerCase()
+      ) {
         const oldName = person.name;
         person.name = update.rename;
         // Add old name as alias if not already present
-        if (!person.aliases.some((a) => a.toLowerCase() === oldName.toLowerCase())) {
+        if (
+          !person.aliases.some((a) => a.toLowerCase() === oldName.toLowerCase())
+        ) {
           person.aliases.push(oldName);
         }
         console.log(`People rename: "${oldName}" → "${update.rename}"`);
@@ -308,7 +347,10 @@ export async function extractAndStoreMemories(
       if (update.aliases && update.aliases.length > 0) {
         const existing = new Set(person.aliases.map((a) => a.toLowerCase()));
         for (const alias of update.aliases) {
-          if (!existing.has(alias.toLowerCase()) && alias.toLowerCase() !== person.name.toLowerCase()) {
+          if (
+            !existing.has(alias.toLowerCase()) &&
+            alias.toLowerCase() !== person.name.toLowerCase()
+          ) {
             person.aliases.push(alias);
           }
         }
@@ -320,7 +362,11 @@ export async function extractAndStoreMemories(
       }
 
       // Link Telegram user if name matches
-      if (userName && person.name.toLowerCase() === userName.toLowerCase() && !person.telegramUserId) {
+      if (
+        userName &&
+        person.name.toLowerCase() === userName.toLowerCase() &&
+        !person.telegramUserId
+      ) {
         person.telegramUserId = userId;
       }
 
@@ -330,7 +376,12 @@ export async function extractAndStoreMemories(
       if (update.relationships) {
         for (const rel of update.relationships) {
           const relatedPerson = peopleHolder.findOrCreatePerson(rel.related_to);
-          peopleHolder.addRelationship(person.id, relatedPerson.id, rel.type, rel.label);
+          peopleHolder.addRelationship(
+            person.id,
+            relatedPerson.id,
+            rel.type,
+            rel.label,
+          );
         }
       }
 
@@ -414,9 +465,15 @@ export async function generateConversationSummary(
   if (!summary || summary.length < 10) return null;
 
   const tags = ["conversation-summary"];
-  const id = await memory.addMemory(summary, "conversation_summary", userId, tags, {
-    subjectName: userName,
-  });
+  const id = await memory.addMemory(
+    summary,
+    "conversation_summary",
+    userId,
+    tags,
+    {
+      subjectName: userName,
+    },
+  );
 
   if (id) {
     console.log(`Stored conversation_summary: "${summary}" (${id})`);
