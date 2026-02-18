@@ -27,27 +27,27 @@ jobs:
     - name: Run tests
       run: pnpm test
 
-  deploy:
-    runs-on: ubuntu-latest
-    needs: test
+  # deploy:
+  #   runs-on: ubuntu-latest
+  #   needs: test
 
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+  #   steps:
+  #   - name: Checkout code
+  #     uses: actions/checkout@v4
 
-    - name: Deploy to Droplet
-      uses: appleboy/ssh-action@v0.1.3 # Action to run commands over SSH
-      with:
-        host: ${{ secrets.DROPLET_IP }}
-        username: root # e.g., root or a deployer user
-        key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
-        script: |
-          # Commands to run on the DigitalOcean Droplet
-          export NVM_DIR="$HOME/.nvm"
-          [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
-          export PATH="$HOME/.local/share/pnpm:$PATH" # Add pnpm to the PATH
-          cd /root/agents/kramer-diary-agent
-          git pull origin main # Pull the latest code from GitHub
-          pnpm install
-          pnpm build
-          pm2 restart kramer-diary-agent
+    # - name: Deploy to Droplet
+    #   uses: appleboy/ssh-action@v0.1.3 # Action to run commands over SSH
+    #   with:
+    #     host: ${{ secrets.DROPLET_IP }}
+    #     username: root # e.g., root or a deployer user
+    #     key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+    #     script: |
+    #       # Commands to run on the DigitalOcean Droplet
+    #       export NVM_DIR="$HOME/.nvm"
+    #       [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
+    #       export PATH="$HOME/.local/share/pnpm:$PATH" # Add pnpm to the PATH
+    #       cd /root/agents/kramer-diary-agent
+    #       git pull origin main # Pull the latest code from GitHub
+    #       pnpm install
+    #       pnpm build
+    #       pm2 restart kramer-diary-agent
