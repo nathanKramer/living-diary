@@ -4,6 +4,8 @@
 
 An AI-powered memory companion that lives in Telegram. Talk to it about your day, the people in your life, or anything on your mind -- it remembers what matters and reflects it back naturally over time.
 
+This is the local version. The new version (livingdiary.ai) is elixir/phoenix.
+
 ## What it does
 
 - **Remembers conversations** -- extracts facts, diary entries, and details about people from your messages
